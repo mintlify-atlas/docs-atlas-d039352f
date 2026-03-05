@@ -1,0 +1,92 @@
+{
+  "projectType": "saas",
+  "projectName": "SkyCast IA",
+  "projectDescription": "AI-powered weather web application with intelligent chat, real-time forecasts, and personalized climate recommendations.",
+  "theme": "palm",
+  "primaryColor": "#1e8cec",
+  "lightColor": "#b8da97",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/weather-display",
+              "features/ai-chat",
+              "features/location-services",
+              "features/forecast",
+              "features/weather-map"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/environment-variables",
+              "configuration/api-keys",
+              "configuration/deployment"
+            ]
+          },
+          {
+            "group": "Components",
+            "pages": [
+              "components/overview",
+              "components/weather-cards",
+              "components/search",
+              "components/chat-interface"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "APIs",
+            "pages": [
+              "api/weather",
+              "api/chat",
+              "api/news"
+            ]
+          },
+          {
+            "group": "Hooks",
+            "pages": [
+              "api/hooks/use-location"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Real-time weather data from OpenWeatherMap API",
+    "AI-powered weather analysis and recommendations using Groq/Llama",
+    "Interactive chat interface with weather-specific advice",
+    "Automatic geolocation with manual city search",
+    "Hourly weather forecasts with visual charts",
+    "Interactive weather map with Leaflet",
+    "Dynamic UI themes based on weather conditions",
+    "Weather news integration",
+    "reCAPTCHA security for AI interactions"
+  ],
+  "publicApiSurface": [
+    "getCurrentWeather(lat, lon)",
+    "getWeatherByCity(city)",
+    "getWeatherForecast(lat, lon)",
+    "getAiWeatherAnalysis(weatherData)",
+    "useLocation()",
+    "POST /api/chat",
+    "POST /api/news"
+  ]
+}
