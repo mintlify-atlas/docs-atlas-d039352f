@@ -1,0 +1,354 @@
+---
+title: 'useLocation'
+description: 'React hook for accessing device geolocation with automatic error handling and manual refresh'
+---
+
+## Overview
+
+The `useLocation` hook provides a simple interface to access the device's GPS coordinates using the browser's Geolocation API. It includes automatic initial location detection, comprehensive error handling, and manual refresh capability.
+
+## Usage
+
+```typescript
+import { useLocation } from '@/hooks/useLocation';
+
+const { coords, error, loading, refresh } = useLocation();
+```
+
+## Return Values
+
+<ResponseField name="coords" type="object | null">
+  Geographic coordinates object, or `null` if not yet available
+  <Expandable title="Coordinates Properties">
+    <ResponseField name="lat" type="number">
+      Latitude coordinate (-90 to 90)
+    </ResponseField>
+    <ResponseField name="lon" type="number">
+      Longitude coordinate (-180 to 180)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="error" type="string | null">
+  User-friendly error message in Spanish, or `null` if no error
+</ResponseField>
+
+<ResponseField name="loading" type="boolean">
+  `true` while fetching location, `false` when complete or failed
+</ResponseField>
+
+<ResponseField name="refresh" type="function">
+  Function to manually trigger location refresh. Signature: `() => void`
+</ResponseField>
+
+## Example
+
+<CodeGroup>
+```typescript Basic Usage
+import { useLocation } from '@/hooks/useLocation';
+import { getCurrentWeather } from '@/lib/api/weather';
+
+export default function WeatherApp() {
+  const { coords, error, loading, refresh } = useLocation();
+  const [weather, setWeather] = useState(null);
+  
+  useEffect(() => {
+    if (coords) {
+      getCurrentWeather(coords.lat, coords.lon)
+        .then(setWeather);
+    }
+  }, [coords]);
+  
+  if (loading) return <div>Detecting location...</div>;
+  if (error) return <div>Error: {error}</div>;
+  if (!coords) return <div>Location unavailable</div>;
+  
+  return (
+    <div>
+      <p>Lat: {coords.lat}, Lon: {coords.lon}</p>
+      {weather && <p>Temp: {weather.main.temp}°C</p>}
+    </div>
+  );
+}
+```
+
+```typescript With Manual Refresh
+import { useLocation } from '@/hooks/useLocation';
+
+export default function LocationButton() {
+  const { coords, error, loading, refresh } = useLocation();
+  
+  return (
+    <div>
+      <button onClick={refresh} disabled={loading}>
+        {loading ? 'Detecting...' : 'Refresh Location'}
+      </button>
+      
+      {coords && (
+        <p>Current: {coords.lat.toFixed(4)}, {coords.lon.toFixed(4)}</p>
+      )}
+      
+      {error && (
+        <p className="error">{error}</p>
+      )}
+    </div>
+  );
+}
+```
+
+```typescript Conditional Rendering
+import { useLocation } from '@/hooks/useLocation';
+
+export default function WeatherDashboard() {
+  const { coords, error, loading, refresh } = useLocation();
+  
+  const renderContent = () => {
+    if (loading) {
+      return <Spinner />;
+    }
+    
+    if (error) {
+      return (
+        <div className="error-state">
+          <p>{error}</p>
+          <button onClick={refresh}>Try Again</button>
+        </div>
+      );
+    }
+    
+    if (!coords) {
+      return <p>Please enable location access</p>;
+    }
+    
+    return <WeatherDisplay coords={coords} />;
+  };
+  
+  return (
+    <div className="dashboard">
+      {renderContent()}
+    </div>
+  );
+}
+```
+</CodeGroup>
+
+## Error Handling
+
+The hook provides user-friendly error messages in Spanish based on the Geolocation API error codes:
+
+| Error Code | Message (Spanish) | Meaning |
+|------------|-------------------|----------|
+| 1 | "Permiso denegado. Activa la ubicación en los ajustes." | User denied permission |
+| 2 | "Ubicación no disponible. Revisa tu señal o GPS." | Position unavailable |
+| 3 | "Tiempo de espera agotado. Reintenta." | Timeout exceeded |
+| Unknown | "Error desconocido" | Other errors |
+
+### Error State Example
+
+```typescript
+const { error } = useLocation();
+
+if (error) {
+  // Example errors:
+  // "Permiso denegado. Activa la ubicación en los ajustes."
+  // "Ubicación no disponible. Revisa tu señal o GPS."
+  // "Tiempo de espera agotado. Reintenta."
+  console.error('Geolocation error:', error);
+}
+```
+
+## Configuration
+
+The hook uses the following Geolocation API options:
+
+<ParamField path="enableHighAccuracy" type="boolean" default={true}>
+  Requests the most accurate position available. Critical for mobile devices.
+</ParamField>
+
+<ParamField path="timeout" type="number" default={15000}>
+  Maximum time (in milliseconds) to wait for position. Set to 15 seconds to accommodate slower mobile GPS connections.
+</ParamField>
+
+<ParamField path="maximumAge" type="number" default={0}>
+  Maximum age of cached position. Set to 0 to force fresh location data.
+</ParamField>
+
+### Customizing Options
+
+If you need different configuration, modify the hook source:
+
+```typescript
+const options: PositionOptions = {
+  enableHighAccuracy: true,  // Best accuracy
+  timeout: 15000,            // 15 seconds
+  maximumAge: 0              // No cache
+};
+```
+
+## Behavior
+
+### Automatic Initial Detection
+
+The hook automatically attempts to get the user's location on mount:
+
+```typescript
+useEffect(() => {
+  getLocation(false); // Automatic, non-manual attempt
+}, [getLocation]);
+```
+
+### Manual Refresh
+
+Calling `refresh()` triggers a new location request:
+
+```typescript
+const { refresh } = useLocation();
+
+// User clicks GPS button
+refresh(); // Manually triggers location fetch
+```
+
+The difference between automatic and manual:
+- **Automatic** (`isManual=false`): Clears previous errors immediately
+- **Manual** (`isManual=true`): Preserves error state until new position is received, providing better user feedback
+
+## Browser Compatibility
+
+The hook checks for Geolocation API support:
+
+```typescript
+if (!navigator.geolocation) {
+  setError("Tu navegador no soporta geolocalización");
+  setLoading(false);
+  return;
+}
+```
+
+### Supported Browsers
+
+- Chrome/Edge 5+
+- Firefox 3.5+
+- Safari 5+
+- Opera 10.6+
+- iOS Safari 3.2+
+- Android Browser 2.1+
+
+## Security Considerations
+
+### HTTPS Requirement
+
+Geolocation API requires HTTPS in production:
+- ✅ `https://yourdomain.com`
+- ✅ `http://localhost` (development only)
+- ❌ `http://yourdomain.com` (will fail)
+
+### Permission Prompts
+
+Browsers will prompt users for location permission:
+- First call triggers browser permission dialog
+- User choice is remembered for the domain
+- Denied permission results in error code 1
+
+### Privacy Best Practices
+
+```typescript
+// Good: Explain why you need location
+<div>
+  <p>We need your location to show local weather</p>
+  <button onClick={refresh}>Enable Location</button>
+</div>
+
+// Bad: Request without context
+<button onClick={refresh}>Click Here</button>
+```
+
+## Performance Tips
+
+### Avoiding Unnecessary Refreshes
+
+```typescript
+const { coords, refresh } = useLocation();
+
+// Good: Only refresh when user explicitly requests
+<button onClick={refresh}>Update Location</button>
+
+// Bad: Refreshing on every render
+useEffect(() => {
+  refresh(); // Infinite loop!
+}, [coords]);
+```
+
+### Caching Coordinates
+
+```typescript
+const { coords } = useLocation();
+const [savedCoords, setSavedCoords] = useState(null);
+
+useEffect(() => {
+  if (coords) {
+    // Save to localStorage for offline use
+    localStorage.setItem('lastCoords', JSON.stringify(coords));
+    setSavedCoords(coords);
+  }
+}, [coords]);
+```
+
+## Troubleshooting
+
+### Location Not Detected
+
+1. **Check browser support**: Ensure `navigator.geolocation` exists
+2. **Verify HTTPS**: Geolocation requires secure context
+3. **Check permissions**: User may have denied access
+4. **Mobile GPS**: Ensure location services are enabled in device settings
+
+### Timeout Errors
+
+```typescript
+// Increase timeout for slow connections
+const options: PositionOptions = {
+  enableHighAccuracy: true,
+  timeout: 30000, // 30 seconds instead of 15
+  maximumAge: 0
+};
+```
+
+### Accuracy Issues
+
+- **Desktop**: Typically uses IP-based location (less accurate)
+- **Mobile**: Uses GPS when `enableHighAccuracy: true`
+- **Indoors**: GPS signal may be weak or unavailable
+
+## Integration Examples
+
+### With Weather API
+
+```typescript
+import { useLocation } from '@/hooks/useLocation';
+import { getCurrentWeather } from '@/lib/api/weather';
+
+const { coords } = useLocation();
+const [weather, setWeather] = useState(null);
+
+useEffect(() => {
+  if (coords) {
+    getCurrentWeather(coords.lat, coords.lon)
+      .then(data => setWeather(data));
+  }
+}, [coords]);
+```
+
+### With Maps
+
+```typescript
+import { useLocation } from '@/hooks/useLocation';
+import { MapContainer, Marker } from 'react-leaflet';
+
+const { coords } = useLocation();
+
+return coords ? (
+  <MapContainer center={[coords.lat, coords.lon]} zoom={13}>
+    <Marker position={[coords.lat, coords.lon]} />
+  </MapContainer>
+) : null;
+```

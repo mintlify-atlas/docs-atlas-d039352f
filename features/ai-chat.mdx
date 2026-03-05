@@ -1,0 +1,288 @@
+---
+title: "AI Chat Assistant"
+description: "Intelligent weather conversations powered by Groq/Llama with contextual recommendations"
+---
+
+## Overview
+
+SkyCast IA includes an interactive chat interface powered by Groq's LLaMA 3.1 model. Users can ask weather-related questions and receive personalized, context-aware recommendations.
+
+## WeatherChat Component
+
+The `WeatherChat` component provides a floating chat button and modal interface:
+
+```typescript
+import WeatherChat from '@/components/ui/WeatherChat';
+
+<WeatherChat
+  city="New York"
+  temp={22}
+  weatherType="clear"
+  humidity={65}
+  feels_like={24}
+  wind_speed={12}
+  description="clear sky"
+  pressure={1013}
+  pop={0.1}
+/>
+```
+
+### Props Reference
+
+<ParamField path="city" type="string" required>
+  Current city name for context
+</ParamField>
+
+<ParamField path="temp" type="number" required>
+  Current temperature in Celsius
+</ParamField>
+
+<ParamField path="weatherType" type="string" required>
+  Weather condition type: `snow`, `hot`, `rain`, `thunder`, `clear`, `clouds`, `default`
+</ParamField>
+
+<ParamField path="humidity" type="number" required>
+  Relative humidity percentage (0-100)
+</ParamField>
+
+<ParamField path="feels_like" type="number" required>
+  Thermal sensation temperature in Celsius
+</ParamField>
+
+<ParamField path="wind_speed" type="number" required>
+  Wind speed in km/h
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  Weather description text (e.g., "partly cloudy")
+</ParamField>
+
+<ParamField path="pressure" type="number">
+  Atmospheric pressure in hPa
+</ParamField>
+
+<ParamField path="pop" type="number">
+  Probability of precipitation (0-1)
+</ParamField>
+
+## Security with reCAPTCHA
+
+All chat interactions are protected with Google reCAPTCHA v2 to prevent abuse:
+
+### Client-Side Integration
+
+```typescript
+import ReCAPTCHA from 'react-google-recaptcha';
+
+const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+
+<ReCAPTCHA
+  sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY}
+  onChange={(token) => setCaptchaToken(token)}
+  theme={isSnow ? "light" : "dark"}
+/>
+```
+
+### Server-Side Verification
+
+The `/api/chat` endpoint verifies CAPTCHA tokens before processing:
+
+```typescript
+// Only verify on first message
+if (messages.length <= 1 && captchaToken) {
+  const verifyRes = await fetch(
+    `https://www.google.com/recaptcha/api/siteverify?secret=${recaptchaSecret}&response=${captchaToken}`,
+    { method: "POST" }
+  );
+  
+  const verifyData = await verifyRes.json();
+  if (!verifyData.success) {
+    return NextResponse.json(
+      { answer: "Error de seguridad. Reintenta." },
+      { status: 403 }
+    );
+  }
+}
+```
+
+<Warning>
+  CAPTCHA verification only runs on the first message to avoid duplicate verification errors on subsequent messages
+</Warning>
+
+## AI System Prompt
+
+The chat uses a carefully crafted system prompt for accurate, helpful responses:
+
+```typescript
+const systemPrompt = {
+  role: "system",
+  content: `Eres SkyCast IA en ${context.city}. Tu estilo es directo, sincero y ligeramente sarcástico. No endulces el clima.
+  
+  DATOS REALES:
+  - Temperatura: ${context.temp}°C (Sensación: ${context.feels_like}°C)
+  - Humedad: ${context.humidity}%
+  - Viento: ${context.wind_speed} km/h
+  - Presión: ${context.pressure}
+  - Probabilidad de lluvia: ${context.pop}
+  - Estado: ${context.description}
+
+  REGLAS CRÍTICAS:
+  1. Usa los datos técnicos (especialmente presión y probabilidad de lluvia) para dar consejos reales.
+  2. Sé breve (máximo 25 palabras).
+  3. Tono: Divertido pero sincero. Si el clima es malo, dilo sin vueltas.
+  4. EMOJIS: Máximo 2 por respuesta. No más.
+  5. Si preguntan qué ponerse, usa la sensación térmica de ${context.feels_like}°C.`
+};
+```
+
+### AI Response Characteristics
+
+<Accordion title="Personality Traits">
+  - **Direct**: No unnecessary fluff or pleasantries
+  - **Honest**: Tells it like it is ("It's cold, bundle up")
+  - **Slightly sarcastic**: Playful tone without being rude
+  - **Context-aware**: Uses real weather data in responses
+  - **Brief**: Maximum 25 words per response
+</Accordion>
+
+<Accordion title="Response Guidelines">
+  - Uses thermal sensation (`feels_like`) for clothing advice
+  - References precipitation probability for rain warnings
+  - Considers wind speed for outdoor activity recommendations
+  - Maximum 2 emojis per message
+  - Responds in Spanish by default
+</Accordion>
+
+## Example Conversations
+
+### Clothing Advice
+
+**User**: ¿Qué me pongo hoy?
+
+**SkyCast IA**: Con 24°C de sensación térmica, ropa ligera. Lleva gafas de sol. ☀️
+
+### Rain Warning
+
+**User**: ¿Necesito paraguas?
+
+**SkyCast IA**: 80% probabilidad de lluvia. Sí, llévalo o te mojas. ☔
+
+### Activity Recommendation
+
+**User**: ¿Está bien para correr?
+
+**SkyCast IA**: Perfecto. 18°C, viento suave (8km/h). Hora de moverte. 🏃
+
+## Dynamic Theming
+
+The chat interface adapts its colors based on weather:
+
+```typescript
+const theme = {
+  header: isHot ? "bg-[#FF5733]" : isSnow ? "bg-[#3498DB]" : "bg-[#000000]",
+  container: isSnow
+    ? "bg-white/95 border-2 border-[#3498DB] text-slate-900"
+    : "bg-[#1A1A1A]/95 border-2 border-white/20 text-white",
+  input: isSnow
+    ? "bg-white border-2 border-[#3498DB] text-slate-900"
+    : "bg-[#2D2D2D] border-2 border-white/10 text-white",
+  userMsg: "bg-[#E74C3C] text-white",
+  aiMsg: isSnow ? "bg-[#ECF0F1] text-slate-800" : "bg-[#3D3D3D] text-white",
+  button: "bg-[#2ECC71]"
+};
+```
+
+## Message Flow
+
+<Steps>
+  <Step title="User Opens Chat">
+    User clicks the floating chat button. CAPTCHA challenge appears.
+  </Step>
+  
+  <Step title="CAPTCHA Verification">
+    User completes reCAPTCHA v2 challenge. Token is stored in state.
+  </Step>
+  
+  <Step title="User Sends Message">
+    User types question and presses Enter or clicks Send button.
+  </Step>
+  
+  <Step title="API Request">
+    Client sends POST request to `/api/chat` with message, context, and CAPTCHA token.
+  </Step>
+  
+  <Step title="Server Processing">
+    Server verifies CAPTCHA (first message only), builds system prompt with weather context, calls Groq API.
+  </Step>
+  
+  <Step title="AI Response">
+    LLaMA 3.1 generates response based on weather data and user question.
+  </Step>
+  
+  <Step title="Display Response">
+    Response appears in chat with proper formatting and auto-scroll to bottom.
+  </Step>
+</Steps>
+
+## API Configuration
+
+### Model Parameters
+
+```typescript
+{
+  model: "llama-3.1-8b-instant",
+  messages: [systemPrompt, ...messages],
+  max_tokens: 150,
+  temperature: 0.7  // Balanced creativity and consistency
+}
+```
+
+### Environment Variables
+
+```bash
+GROQ_API_KEY=your_groq_api_key_here
+NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your_recaptcha_site_key
+RECAPTCHA_SECRET_KEY=your_recaptcha_secret_key
+```
+
+<Tip>
+  Get your Groq API key from [console.groq.com](https://console.groq.com) and reCAPTCHA keys from [Google reCAPTCHA Admin](https://www.google.com/recaptcha/admin)
+</Tip>
+
+## Character Limits
+
+- User input: **300 characters maximum**
+- AI response: **150 tokens maximum** (≈25 words)
+- Message history: Unlimited (sent with each request)
+
+## Error Handling
+
+```typescript
+try {
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages, captchaToken, context })
+  });
+  
+  if (!response.ok) throw new Error(data.answer);
+  
+  setMessages(prev => [
+    ...prev,
+    { role: 'assistant', content: data.answer }
+  ]);
+} catch (error) {
+  setMessages(prev => [
+    ...prev,
+    { role: 'assistant', content: 'Error de conexión. 📡' }
+  ]);
+}
+```
+
+## Accessibility Features
+
+- Keyboard navigation (Enter to send)
+- Focus management
+- ARIA labels on interactive elements
+- High contrast message bubbles
+- Screen reader friendly

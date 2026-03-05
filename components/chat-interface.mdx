@@ -1,0 +1,520 @@
+---
+title: Chat Interface
+description: AI-powered WeatherChat component with reCAPTCHA verification and context-aware responses
+---
+
+# WeatherChat Component
+
+An intelligent chat interface powered by AI that provides weather-specific recommendations and answers user questions about current conditions.
+
+## Overview
+
+WeatherChat is a floating widget that opens a chat interface with:
+- **AI-powered responses** using weather context
+- **Google reCAPTCHA v2** security verification
+- **Conversation history** management
+- **Suggested prompts** for common questions
+- **Adaptive theming** based on weather conditions
+
+## Props
+
+<ParamField path="city" type="string" required>
+  Current city name for context.
+  
+  Example: `"New York"`
+</ParamField>
+
+<ParamField path="temp" type="number" required>
+  Current temperature in Celsius (rounded).
+  
+  Example: `23`
+</ParamField>
+
+<ParamField path="weatherType" type="string" required>
+  Weather condition type for theming.
+  
+  **Valid values:**
+  - `"snow"` - Snow conditions
+  - `"hot"` - Temperature > 28°C
+  - `"rain"` - Rainy conditions
+  - `"thunder"` - Thunderstorms
+  - `"drizzle"` - Light rain
+  - `"clear"` - Clear skies
+  - `"clouds"` - Cloudy
+  - `"default"` - Fallback
+</ParamField>
+
+<ParamField path="humidity" type="number" required>
+  Humidity percentage (0-100).
+  
+  Example: `65`
+</ParamField>
+
+<ParamField path="feels_like" type="number" required>
+  Perceived temperature in Celsius (rounded).
+  
+  Example: `21`
+</ParamField>
+
+<ParamField path="wind_speed" type="number" required>
+  Wind speed in m/s.
+  
+  Example: `3.5`
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  Weather description text.
+  
+  Example: `"partly cloudy"`
+</ParamField>
+
+<ParamField path="pressure" type="number | string" default="N/A">
+  Atmospheric pressure in hPa.
+  
+  Example: `1013`
+</ParamField>
+
+<ParamField path="pop" type="number" default="0">
+  Probability of precipitation (0-1 decimal).
+  
+  Example: `0.35` (35% chance)
+</ParamField>
+
+## Basic Usage
+
+<CodeGroup>
+```tsx Simple Implementation
+import WeatherChat from '@/components/ui/WeatherChat';
+
+function WeatherDashboard({ weather, forecast }) {
+  const weatherType = getWeatherType(weather);
+  
+  return (
+    <WeatherChat
+      city={weather.name}
+      temp={Math.round(weather.main.temp)}
+      weatherType={weatherType}
+      humidity={weather.main.humidity}
+      feels_like={Math.round(weather.main.feels_like)}
+      wind_speed={weather.wind.speed}
+      description={weather.weather[0].description}
+      pressure={weather.main.pressure}
+      pop={forecast[0]?.pop || 0}
+    />
+  );
+}
+```
+
+```tsx Weather Type Helper
+function getWeatherType(weather: any): string {
+  const main = weather.weather[0].main.toLowerCase();
+  const temp = weather.main.temp;
+  
+  if (temp > 28) return "hot";
+  if (temp <= 0 || main.includes("snow")) return "snow";
+  if (main.includes("thunderstorm")) return "thunder";
+  if (main.includes("rain") || main.includes("drizzle")) return "rain";
+  if (main.includes("clear")) return "clear";
+  if (main.includes("clouds")) return "clouds";
+  
+  return "default";
+}
+```
+</CodeGroup>
+
+## Features
+
+### reCAPTCHA Verification
+
+Security verification before enabling chat:
+
+```tsx
+import ReCAPTCHA from "react-google-recaptcha";
+
+const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+const [isVerified, setIsVerified] = useState(false);
+const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || "";
+
+{!isVerified && !captchaToken && (
+  <div className="flex flex-col items-center justify-center h-full">
+    <p className="text-xs uppercase">Validación de Seguridad</p>
+    <ReCAPTCHA
+      sitekey={siteKey}
+      onChange={(token) => {
+        setCaptchaToken(token);
+        setIsVerified(true);
+      }}
+      theme={isSnow ? "light" : "dark"}
+    />
+  </div>
+)}
+```
+
+**Environment Setup:**
+
+```bash
+NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your_site_key_here
+```
+
+### Message Interface
+
+Message structure for conversation history:
+
+```typescript
+interface Message {
+  role: "user" | "assistant";
+  content: string;
+}
+
+const [messages, setMessages] = useState<Message[]>([]);
+```
+
+### Context-Aware Responses
+
+Weather data sent to API for relevant answers:
+
+```typescript
+const handleSend = async (msgText: string) => {
+  const newMessages = [
+    ...messages,
+    { role: "user", content: msgText }
+  ];
+  
+  const response = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: newMessages,
+      captchaToken: captchaToken,
+      context: {
+        city,
+        temp,
+        humidity,
+        feels_like,
+        wind_speed,
+        description,
+        pressure: pressure || "N/A",
+        pop: pop !== undefined ? `${Math.round(pop * 100)}%` : "0%"
+      }
+    })
+  });
+  
+  const data = await response.json();
+  setMessages(prev => [
+    ...prev,
+    { role: "assistant", content: data.answer }
+  ]);
+};
+```
+
+### Suggested Prompts
+
+Quick-action buttons for common questions:
+
+```tsx
+{isVerified && messages.length === 0 && (
+  <button
+    onClick={() => handleSend(`¿Cómo está el clima para salir ahora?`)}
+    className="w-full flex items-center gap-2 p-3 rounded-xl"
+  >
+    {isSnow ? <Snowflake size={16} /> : <Shirt size={16} />}
+    ¿Qué me pongo hoy?
+  </button>
+)}
+```
+
+**Common Prompts:**
+- "¿Qué me pongo hoy?" - Clothing recommendations
+- "¿Cómo está el clima para salir ahora?" - Current conditions assessment
+
+## Theming System
+
+<Accordion title="Dynamic Theme Configuration">
+  ```tsx
+  const theme = {
+    header: isHot 
+      ? "bg-[#FF5733]" 
+      : isSnow 
+        ? "bg-[#3498DB]" 
+        : "bg-[#000000]",
+    
+    container: isSnow
+      ? "bg-white/95 border-2 border-[#3498DB] text-slate-900"
+      : "bg-[#1A1A1A]/95 border-2 border-white/20 text-white",
+    
+    input: isSnow
+      ? "bg-white border-2 border-[#3498DB] text-slate-900"
+      : "bg-[#2D2D2D] border-2 border-white/10 text-white",
+    
+    userMsg: "bg-[#E74C3C] text-white",
+    
+    aiMsg: isSnow 
+      ? "bg-[#ECF0F1] text-slate-800" 
+      : "bg-[#3D3D3D] text-white",
+    
+    button: "bg-[#2ECC71]"
+  };
+  ```
+</Accordion>
+
+<Accordion title="Weather-Specific Styles">
+  **Snow Theme:**
+  - Light backgrounds (`bg-white/95`)
+  - Dark text (`text-slate-900`)
+  - Blue accents (`#3498DB`)
+  
+  **Hot Theme:**
+  - Orange-red header (`#FF5733`)
+  - High contrast for visibility
+  
+  **Default Theme:**
+  - Dark backgrounds (`bg-[#1A1A1A]/95`)
+  - White text
+  - Glass morphism effects
+</Accordion>
+
+## Message Rendering
+
+```tsx
+{messages.map((m, i) => (
+  <div
+    key={i}
+    className={`flex ${
+      m.role === "user" ? "justify-end" : "justify-start"
+    }`}
+  >
+    <div
+      className={`max-w-[85%] p-3 rounded-xl text-[13px] font-bold ${
+        m.role === "user" ? theme.userMsg : theme.aiMsg
+      }`}
+    >
+      {m.content}
+    </div>
+  </div>
+))}
+```
+
+**User Messages:**
+- Red background (`#E74C3C`)
+- Right-aligned
+- White text
+
+**AI Messages:**
+- Adaptive background (snow/default)
+- Left-aligned
+- Bold font
+
+## Auto-Scrolling
+
+Messages automatically scroll to bottom:
+
+```typescript
+const scrollRef = useRef<HTMLDivElement>(null);
+
+useEffect(() => {
+  if (scrollRef.current) {
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }
+}, [messages, isLoading]);
+
+<div 
+  ref={scrollRef}
+  className="flex-1 overflow-y-auto"
+>
+  {/* Messages */}
+</div>
+```
+
+## Input Handling
+
+### Character Limit
+
+```tsx
+<input
+  type="text"
+  value={input}
+  maxLength={300}
+  onChange={(e) => setInput(e.target.value)}
+  onKeyDown={(e) => e.key === "Enter" && handleSend()}
+  placeholder="Pregunta sobre el clima..."
+/>
+```
+
+### Send Validation
+
+```typescript
+const handleSend = async (customMsg?: string) => {
+  const msgText = (customMsg || input).trim();
+  
+  // Validation checks
+  if (!msgText || isLoading || !captchaToken) return;
+  if (msgText.length > 300) return;
+  
+  // Process message...
+};
+```
+
+## Loading States
+
+<CodeGroup>
+```tsx Typing Indicator
+{isLoading && (
+  <div className="text-xs font-black opacity-40 animate-pulse">
+    SkyCast está pensando...
+  </div>
+)}
+```
+
+```tsx Disabled Send Button
+<button
+  onClick={() => handleSend()}
+  disabled={isLoading || !input.trim()}
+  className="disabled:grayscale"
+>
+  <Send size={20} />
+</button>
+```
+</CodeGroup>
+
+## API Integration
+
+### Chat API Route
+
+Create API endpoint at `/api/chat/route.ts`:
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function POST(req: NextRequest) {
+  const { messages, captchaToken, context } = await req.json();
+  
+  // Verify reCAPTCHA
+  const captchaResponse = await fetch(
+    `https://www.google.com/recaptcha/api/siteverify`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${captchaToken}`
+    }
+  );
+  
+  const captchaData = await captchaResponse.json();
+  if (!captchaData.success) {
+    return NextResponse.json(
+      { error: 'Verificación fallida' },
+      { status: 400 }
+    );
+  }
+  
+  // Generate AI response using context
+  const aiResponse = await generateWeatherResponse(messages, context);
+  
+  return NextResponse.json({ answer: aiResponse });
+}
+```
+
+### Environment Variables
+
+```bash
+# Public (client-side)
+NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your_site_key
+
+# Private (server-side)
+RECAPTCHA_SECRET_KEY=your_secret_key
+```
+
+## Error Handling
+
+```typescript
+try {
+  const response = await fetch('/api/chat', { /* ... */ });
+  const data = await response.json();
+  
+  if (!response.ok) throw new Error(data.answer);
+  
+  setMessages(prev => [
+    ...prev,
+    { role: 'assistant', content: data.answer }
+  ]);
+  setIsVerified(true);
+} catch (error: any) {
+  setMessages(prev => [
+    ...prev,
+    { role: 'assistant', content: 'Error de conexión. 📡' }
+  ]);
+} finally {
+  setIsLoading(false);
+}
+```
+
+## Positioning
+
+Floating widget in bottom-right corner:
+
+```tsx
+<div className="fixed bottom-6 right-6 z-[100]">
+  <button
+    onClick={() => setIsOpen(!isOpen)}
+    className="p-4 rounded-xl shadow-lg"
+  >
+    {isOpen ? <X size={28} /> : <MessageCircle size={28} />}
+  </button>
+  
+  {isOpen && (
+    <div className="absolute bottom-20 right-0 w-[350px] h-[550px]">
+      {/* Chat interface */}
+    </div>
+  )}
+</div>
+```
+
+**Z-index hierarchy:**
+- Widget: `z-[100]`
+- Chat window: `z-[100]` (same layer)
+- App header: `z-50`
+
+## Accessibility
+
+- **Keyboard shortcuts:** Enter to send message
+- **Focus management:** Auto-focus input on open
+- **Screen readers:** Semantic message structure
+- **Color contrast:** WCAG AA compliant
+
+## Best Practices
+
+1. **Always verify reCAPTCHA** before enabling chat
+2. **Limit message length** to prevent abuse (300 chars)
+3. **Clear input** after sending
+4. **Provide loading feedback** during API calls
+5. **Handle errors gracefully** with user-friendly messages
+6. **Keep context minimal** - only send necessary weather data
+7. **Store conversation locally** if persistence needed
+
+## Customization Examples
+
+<CodeGroup>
+```tsx Custom Header Icon
+<div className="flex items-center gap-3">
+  <Sparkles size={20} />
+  <span>Mi Asistente Meteorológico</span>
+</div>
+```
+
+```tsx Additional Prompts
+{suggestedPrompts.map((prompt, i) => (
+  <button
+    key={i}
+    onClick={() => handleSend(prompt.text)}
+  >
+    {prompt.icon}
+    {prompt.label}
+  </button>
+))}
+```
+
+```tsx Message Timestamps
+<div className="text-[10px] opacity-50 mt-1">
+  {new Date().toLocaleTimeString()}
+</div>
+```
+</CodeGroup>

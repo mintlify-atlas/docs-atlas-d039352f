@@ -1,0 +1,382 @@
+---
+title: "Interactive Weather Map"
+description: "Leaflet-powered maps with weather overlays and city markers"
+---
+
+## Overview
+
+SkyCast IA features an interactive map powered by Leaflet.js, displaying temperature, precipitation, and wind overlays from OpenWeatherMap.
+
+## WeatherMap Component
+
+The `WeatherMap` component renders a fully interactive map with weather layers:
+
+```typescript
+import WeatherMap from '@/components/ui/WeatherMap';
+
+<WeatherMap
+  lat={40.7128}
+  lon={-74.0060}
+  city="New York"
+  isSnow={false}
+/>
+```
+
+### Props
+
+<ParamField path="lat" type="number" required>
+  Latitude coordinate for map center
+</ParamField>
+
+<ParamField path="lon" type="number" required>
+  Longitude coordinate for map center
+</ParamField>
+
+<ParamField path="city" type="string" required>
+  City name for display in header and marker popup
+</ParamField>
+
+<ParamField path="isSnow" type="boolean">
+  Enable snow theme styling (default: `false`)
+</ParamField>
+
+## Server-Side Rendering Handling
+
+Leaflet requires the `window` object, which isn't available during SSR. SkyCast uses Next.js dynamic imports:
+
+```typescript
+import dynamic from 'next/dynamic';
+
+// Disable SSR for map component
+const WeatherMap = dynamic(
+  () => import('@/components/ui/WeatherMap'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[550px] bg-black/10 animate-pulse rounded-[3rem]" />
+    )
+  }
+);
+```
+
+<Warning>
+  Always import `WeatherMap` with `ssr: false` to prevent "window is not defined" errors
+</Warning>
+
+## Weather Layers
+
+Three weather overlays are available via LayersControl:
+
+### Temperature Layer (Default)
+
+```typescript
+<LayersControl.BaseLayer checked name="🌡️ Temperatura">
+  <TileLayer
+    url={`https://tile.openweathermap.org/map/temp_new/{z}/{x}/{y}.png?appid=${API_KEY}`}
+    opacity={0.7}
+  />
+</LayersControl.BaseLayer>
+```
+
+**Color Scale**:
+- Deep blue: Below -20°C
+- Light blue: 0°C
+- Green: 15°C
+- Yellow: 25°C
+- Red: 35°C and above
+
+### Precipitation Layer
+
+```typescript
+<LayersControl.BaseLayer name="🌧️ Precipitación">
+  <TileLayer
+    url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${API_KEY}`}
+    opacity={0.7}
+  />
+</LayersControl.BaseLayer>
+```
+
+**Color Scale**:
+- Light blue: Light rain (under 2mm/h)
+- Blue: Moderate rain (2-10mm/h)
+- Dark blue: Heavy rain (10-50mm/h)
+- Purple: Extreme rain (over 50mm/h)
+
+### Wind Layer
+
+```typescript
+<LayersControl.BaseLayer name="💨 Viento">
+  <TileLayer
+    url={`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${API_KEY}`}
+    opacity={0.7}
+  />
+</LayersControl.BaseLayer>
+```
+
+**Visualization**:
+- Arrow direction: Wind direction
+- Arrow length: Wind speed
+- Color intensity: Speed magnitude
+
+<Note>
+  Weather layers update every 10 minutes on OpenWeatherMap's servers
+</Note>
+
+## Custom Marker
+
+SkyCast uses a custom animated marker for the selected city:
+
+```typescript
+const getCustomIcon = (isSnow: boolean) => {
+  const color = isSnow ? "#ffffff" : "#000000";
+  const stroke = isSnow ? "#3b82f6" : "#ffffff";
+  
+  return new L.DivIcon({
+    html: `
+      <div class="relative">
+        <div class="absolute -top-8 -left-4 p-2 rounded-full border-2 shadow-xl animate-bounce" 
+             style="background-color: ${color}; border-color: ${stroke};">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" 
+               fill="none" stroke="currentColor" stroke-width="3">
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+        </div>
+      </div>
+    `,
+    className: "custom-pin",
+    iconSize: [0, 0]
+  });
+};
+
+<Marker position={[lat, lon]} icon={getCustomIcon(isSnow)}>
+  <Popup>{city}</Popup>
+</Marker>
+```
+
+### Marker Features
+
+- Animated bounce effect
+- Adaptive colors (white on dark, black on light)
+- Popup with city name
+- High contrast border
+- Touch-friendly size
+
+## Map Controls
+
+### Custom Zoom Buttons
+
+SkyCast uses custom-styled zoom controls:
+
+```typescript
+<div className="absolute top-6 right-6 z-[1000]">
+  <div className="bg-black/80 rounded-2xl flex flex-col">
+    <button id="zoom-in" className="p-3 hover:bg-white/10">
+      <Plus size={20} />
+    </button>
+    <button id="zoom-out" className="p-3 hover:bg-white/10">
+      <Minus size={20} />
+    </button>
+  </div>
+</div>
+```
+
+### ZoomBridge Component
+
+Connects custom buttons to Leaflet's zoom API:
+
+```typescript
+function ZoomBridge() {
+  const map = useMap();
+  
+  useEffect(() => {
+    const btnIn = document.getElementById('zoom-in');
+    const btnOut = document.getElementById('zoom-out');
+    
+    const zoomIn = () => map.zoomIn();
+    const zoomOut = () => map.zoomOut();
+    
+    btnIn?.addEventListener('click', zoomIn);
+    btnOut?.addEventListener('click', zoomOut);
+    
+    return () => {
+      btnIn?.removeEventListener('click', zoomIn);
+      btnOut?.removeEventListener('click', zoomOut);
+    };
+  }, [map]);
+  
+  return null;
+}
+```
+
+## Interaction Overlay
+
+To prevent accidental map panning while scrolling the page, an overlay requires explicit activation:
+
+```typescript
+const [isInteracting, setIsInteracting] = useState(false);
+
+{!isInteracting && (
+  <div
+    onClick={() => setIsInteracting(true)}
+    className="absolute inset-0 z-[1001] bg-black/40 backdrop-blur-[2px] cursor-pointer"
+  >
+    <div className="flex items-center justify-center h-full">
+      <div className="bg-white/10 px-6 py-3 rounded-2xl">
+        <MousePointer2 size={18} />
+        <span>Click para interactuar con el mapa</span>
+      </div>
+    </div>
+  </div>
+)}
+
+<MapContainer
+  scrollWheelZoom={isInteracting}
+  ...
+>
+```
+
+<Tip>
+  This prevents frustrating scroll-jacking when users browse the page
+</Tip>
+
+## Map Styling
+
+### Base Tiles
+
+SkyCast uses different tile providers based on theme:
+
+```typescript
+<TileLayer
+  url={
+    isSnow
+      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+      : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+  }
+/>
+```
+
+| Theme | Provider | Style |
+|-------|----------|-------|
+| Snow | CartoDB Dark | Dark gray, high contrast |
+| Default | OpenStreetMap | Standard map |
+
+### Custom CSS for Leaflet Controls
+
+```typescript
+<style jsx global>{`
+  .leaflet-control-layers {
+    background: ${isSnow ? "#0f172a" : "#000"} !important;
+    color: white !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    border-radius: 1.25rem !important;
+  }
+  
+  .leaflet-popup-content-wrapper {
+    background: ${isSnow ? "#0f172a" : "#1a1a1a"} !important;
+    color: white !important;
+    border-radius: 12px !important;
+  }
+`}</style>
+```
+
+## Legend
+
+A reference legend explains the temperature color scale:
+
+```typescript
+<div className="absolute bottom-6 right-6 z-[1000]">
+  <div className="bg-black/80 p-5 rounded-2xl">
+    <p className="text-xs font-black uppercase mb-3">Referencia</p>
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+        <span className="text-xs">Condiciones Frías</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+        <span className="text-xs">Condiciones Cálidas</span>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+## MapController Hook
+
+Automatically pans to new coordinates:
+
+```typescript
+function MapController({ center }: { center: [number, number] }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    map.setView(center, map.getZoom(), { animate: true });
+  }, [center, map]);
+  
+  return null;
+}
+```
+
+<Note>
+  The map smoothly animates when the user selects a different city
+</Note>
+
+## Performance Optimization
+
+### Memoized Center
+
+```typescript
+const center: [number, number] = useMemo(
+  () => [lat, lon],
+  [lat, lon]
+);
+```
+
+### Lazy Tile Loading
+
+Leaflet loads tiles on-demand as the user pans/zooms.
+
+### Debounced Updates
+
+Map re-centering is debounced when coordinates change rapidly:
+
+```typescript
+const [debouncedCoords] = useDebounce({ lat, lon }, 500);
+
+useEffect(() => {
+  map.setView([debouncedCoords.lat, debouncedCoords.lon]);
+}, [debouncedCoords]);
+```
+
+## Installation
+
+Install required packages:
+
+```bash npm
+npm install leaflet react-leaflet
+npm install -D @types/leaflet
+```
+
+```bash yarn
+yarn add leaflet react-leaflet
+yarn add -D @types/leaflet
+```
+
+### Import Leaflet CSS
+
+```typescript
+import 'leaflet/dist/leaflet.css';
+```
+
+<Warning>
+  Always import Leaflet CSS before using map components to ensure proper styling
+</Warning>
+
+## Accessibility
+
+- Keyboard navigation (arrow keys, +/-, Tab)
+- ARIA labels on controls
+- Screen reader announcements for layer changes
+- High contrast markers
+- Touch-friendly controls (48x48px minimum)

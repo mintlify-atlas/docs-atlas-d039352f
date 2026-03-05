@@ -1,0 +1,348 @@
+---
+title: Weather Cards
+description: Documentation for MainWeatherCard, ForecastCard, and WeatherStats components
+---
+
+# Weather Card Components
+
+These components form the core weather visualization system of SkyCast IA, displaying current conditions, hourly forecasts, and detailed metrics.
+
+## MainWeatherCard
+
+The hero component displaying current weather conditions with AI analysis.
+
+### Props
+
+<ParamField path="weather" type="object" required>
+  OpenWeather API response object containing current weather data.
+  
+  **Key fields:**
+  - `name` (string) - City name
+  - `sys.country` (string) - Country code
+  - `main.temp` (number) - Temperature in Celsius
+  - `main.feels_like` (number) - Perceived temperature
+  - `weather[0].main` (string) - Weather condition (Rain, Snow, Clear, etc.)
+  - `weather[0].description` (string) - Detailed description
+  - `weather[0].icon` (string) - Icon code from OpenWeather
+</ParamField>
+
+<ParamField path="localTime" type="string" required>
+  Formatted local time string (HH:MM:SS format) calculated from timezone offset.
+</ParamField>
+
+<ParamField path="loadingAi" type="boolean" required>
+  Loading state for AI analysis. Shows animated sparkle icon when `true`.
+</ParamField>
+
+<ParamField path="aiAnalysis" type="string" required>
+  AI-generated weather insight text. Displayed in italic formatting.
+</ParamField>
+
+<ParamField path="getTempColor" type="function" required>
+  Function returning Tailwind CSS color class for temperature display.
+  
+  **Signature:** `(temp: number) => string`
+</ParamField>
+
+### Usage Example
+
+<CodeGroup>
+```tsx Basic Usage
+import MainWeatherCard from '@/components/ui/MainWeatherCard';
+
+function WeatherPage() {
+  const [weather, setWeather] = useState(null);
+  const [localTime, setLocalTime] = useState('');
+  const [aiAnalysis, setAiAnalysis] = useState('');
+  const [loadingAi, setLoadingAi] = useState(false);
+
+  return (
+    <MainWeatherCard
+      weather={weather}
+      localTime={localTime}
+      loadingAi={loadingAi}
+      aiAnalysis={aiAnalysis}
+      getTempColor={(temp) => temp > 28 ? 'text-orange-400' : 'text-white'}
+    />
+  );
+}
+```
+
+```tsx With API Integration
+import { getCurrentWeather } from '@/lib/api/weather';
+import { getAiWeatherAnalysis } from '@/lib/api/mistral';
+
+async function fetchWeather(lat: number, lon: number) {
+  const weatherData = await getCurrentWeather(lat, lon);
+  setWeather(weatherData);
+  
+  setLoadingAi(true);
+  const analysis = await getAiWeatherAnalysis(weatherData);
+  setAiAnalysis(analysis);
+  setLoadingAi(false);
+}
+```
+</CodeGroup>
+
+### Weather Icon Logic
+
+The component dynamically selects icons based on weather conditions:
+
+```tsx
+getWeatherIcon() {
+  if (isSnow) return <Snowflake size={100} className="animate-bounce-slow" />;
+  if (mainWeather.includes("thunder")) return <CloudLightning />;
+  if (mainWeather.includes("rain")) return <CloudRain />;
+  if (mainWeather.includes("cloud")) return <Cloud />;
+  
+  // Day/night detection from icon code
+  return isDay 
+    ? <Sun className="animate-spin-slow" />
+    : <Moon className="animate-float" />;
+}
+```
+
+### Adaptive Theming
+
+Colors automatically adjust based on temperature:
+
+<Accordion title="Snow Theme (≤0°C)">
+  - Background: `bg-black/5`
+  - Text: `text-slate-900`
+  - Icons: `text-slate-800`
+  - Border: `border-black/10`
+</Accordion>
+
+<Accordion title="Hot Theme (>28°C)">
+  - Glow effect: `bg-orange-500/20`
+  - Sun icon: `text-orange-300`
+  - Enhanced brightness
+</Accordion>
+
+<Accordion title="Default Theme">
+  - Background: `bg-white/10`
+  - Text: `text-white`
+  - Glass morphism effects
+</Accordion>
+
+### Custom Animations
+
+The component includes three custom CSS animations:
+
+```css
+.animate-spin-slow {
+  animation: spinSlow 12s linear infinite;
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-bounce-slow {
+  animation: bounceSlow 3s ease-in-out infinite;
+}
+```
+
+---
+
+## ForecastCard
+
+Displays 8-hour forecast with temperature chart and precipitation probabilities.
+
+### Props
+
+<ParamField path="forecast" type="array" required>
+  Array of forecast objects from OpenWeather 5-day/3-hour forecast API.
+  
+  **Each object contains:**
+  - `dt` (number) - Unix timestamp
+  - `main.temp` (number) - Temperature
+  - `weather[0].main` (string) - Weather condition
+  - `weather[0].icon` (string) - Weather icon code
+  - `pop` (number) - Probability of precipitation (0-1)
+</ParamField>
+
+### Usage Example
+
+```tsx
+import ForecastCard from '@/components/ui/ForecastCard';
+import { getWeatherForecast } from '@/lib/api/weather';
+
+function WeatherDashboard() {
+  const [forecast, setForecast] = useState([]);
+
+  useEffect(() => {
+    async function loadForecast() {
+      const data = await getWeatherForecast(lat, lon);
+      // Get first 8 hours
+      setForecast(data.slice(0, 8));
+    }
+    loadForecast();
+  }, [lat, lon]);
+
+  return <ForecastCard forecast={forecast} />;
+}
+```
+
+### Precipitation Intelligence
+
+The component analyzes forecast data to provide contextual messages:
+
+<CodeGroup>
+```tsx Currently Raining
+if (isRainingNow) {
+  message = `Lloviendo ahora. Cesa a las ${rainEnds.hour}:00`;
+}
+```
+
+```tsx No Rain - Upcoming
+if (!isRainingNow && nextRain) {
+  message = `Sin lluvias. Llega a las ${nextRain.hour}:00 (${probability}%)`;
+}
+```
+
+```tsx Clear Skies
+message = "Sin lluvias. Cielo despejado hoy";
+```
+</CodeGroup>
+
+### Chart Visualization
+
+Temperature trend displayed using Recharts AreaChart:
+
+```tsx
+const chartData = forecast.map((item) => ({
+  temp: Math.round(item.main.temp)
+}));
+
+<AreaChart data={chartData}>
+  <Area
+    type="natural"
+    dataKey="temp"
+    stroke="#ffffff"
+    fill="url(#chartGrad)"
+    style={{ filter: "url(#glow)" }}
+  />
+</AreaChart>
+```
+
+### Responsive Design
+
+The forecast card uses horizontal scrolling on mobile:
+
+```tsx
+<div className="overflow-x-auto no-scrollbar">
+  <div className="min-w-[850px]">
+    {/* Forecast items */}
+  </div>
+</div>
+```
+
+---
+
+## WeatherStats
+
+Grid display of four key weather metrics with icon-based visualization.
+
+### Props
+
+<ParamField path="weather" type="object" required>
+  Current weather data object containing:
+  - `main.feels_like` - Perceived temperature
+  - `main.humidity` - Humidity percentage
+  - `wind.speed` - Wind speed in m/s (converted to km/h)
+  - `main.pressure` - Atmospheric pressure in hPa
+</ParamField>
+
+<ParamField path="variant" type="'vertical' | 'horizontal'" required>
+  Layout variant. Currently only `horizontal` is used in production.
+</ParamField>
+
+### Usage Example
+
+```tsx
+import WeatherStats from '@/components/ui/WeatherStats';
+
+function WeatherDisplay({ weather }) {
+  return (
+    <WeatherStats 
+      weather={weather} 
+      variant="horizontal" 
+    />
+  );
+}
+```
+
+### Statistics Displayed
+
+<Accordion title="Feels Like Temperature">
+  **Icon:** Thermometer  
+  **Label:** "Sensación"  
+  **Value:** Rounded temperature in °C  
+  **Calculation:** Direct from `weather.main.feels_like`
+</Accordion>
+
+<Accordion title="Humidity">
+  **Icon:** Droplets  
+  **Label:** "Humedad"  
+  **Value:** Percentage (0-100%)  
+  **Calculation:** Direct from `weather.main.humidity`
+</Accordion>
+
+<Accordion title="Wind Speed">
+  **Icon:** Wind  
+  **Label:** "Viento"  
+  **Value:** Speed in km/h  
+  **Calculation:** `Math.round(weather.wind.speed * 3.6)`
+</Accordion>
+
+<Accordion title="Atmospheric Pressure">
+  **Icon:** Gauge  
+  **Label:** "Presión"  
+  **Value:** Pressure in hPa  
+  **Calculation:** Direct from `weather.main.pressure`
+</Accordion>
+
+### Grid Layout
+
+Responsive grid adjusts column count:
+
+```tsx
+<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+  {/* 2 columns on mobile, 4 on desktop */}
+</div>
+```
+
+### Icon Theming
+
+Icon containers adapt to weather conditions:
+
+```tsx
+const iconBg = isSnow 
+  ? "bg-slate-900 text-white"   // Dark icon on light bg
+  : "bg-white/10 text-white";   // Light icon on dark bg
+```
+
+## Styling Best Practices
+
+When customizing these components:
+
+1. **Maintain adaptive theming** - Check for `isSnow` condition
+2. **Preserve animations** - Keep existing animation classes
+3. **Test responsive layouts** - Verify mobile and desktop views
+4. **Use consistent spacing** - Follow 2rem/3rem border radius pattern
+5. **Respect glass morphism** - Keep backdrop-blur and transparency
+
+## Performance Tips
+
+- ForecastCard limits to 8 forecast items to prevent excessive rendering
+- Chart animations only run once on mount
+- Weather icons use SVG for crisp scaling
+- Temperature updates don't trigger full re-renders
+
+## Accessibility
+
+- All icons have semantic meaning through labels
+- Temperature values are readable by screen readers
+- High contrast maintained in all themes
+- Hover states provide visual feedback

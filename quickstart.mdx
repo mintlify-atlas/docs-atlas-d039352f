@@ -1,80 +1,293 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get SkyCast IA up and running in under 5 minutes with this quick start guide
 ---
 
-## Get started in three steps
+# Quickstart Guide
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+Get SkyCast IA displaying weather data in under 5 minutes. This guide will take you from zero to a working weather application with minimal setup.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+This quickstart assumes you have Node.js (v20+) and npm installed. For detailed installation instructions, see the [Installation](/installation) page.
+</Note>
+
+## Prerequisites
+
+Before starting, obtain these free API keys:
+
+1. **OpenWeatherMap API Key** - [Sign up here](https://openweathermap.org/api)
+2. **Groq API Key** - [Get one here](https://console.groq.com)
+
+<Steps>
+
+### Clone and Install
+
+Clone the repository and install dependencies:
+
+```bash
+git clone <repository-url> skycast-ia
+cd skycast-ia
+npm install
+```
+
+### Configure Environment Variables
+
+Create a `.env.local` file in the root directory:
+
+```bash .env.local
+NEXT_PUBLIC_OPENWEATHER_API_KEY=your_openweather_api_key_here
+GROQ_API_KEY=your_groq_api_key_here
+RECAPTCHA_SECRET_KEY=your_recaptcha_secret_here
+NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your_recaptcha_site_key_here
+```
+
+<Warning>
+**NEXT_PUBLIC_** prefix is required for client-side environment variables. Keys without this prefix are only available on the server.
+</Warning>
+
+### Start Development Server
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser. The app will automatically request your location and display weather data.
+
+</Steps>
+
+## Your First Weather Display
+
+Once the dev server is running, SkyCast IA will:
+
+1. Request browser geolocation permission
+2. Fetch current weather for your location
+3. Display AI-generated weather analysis
+4. Show hourly forecast and interactive map
+
+### Understanding the Main Dashboard
+
+The main page (`src/app/page.tsx`) orchestrates all weather features:
+
+```typescript src/app/page.tsx
+import { getCurrentWeather, getWeatherForecast } from "@/lib/api/weather";
+import { getAiWeatherAnalysis } from "@/lib/api/mistral";
+import { useLocation } from "@/hooks/useLocation";
+
+// Automatic location detection
+const { coords, loading, error, refresh } = useLocation();
+
+// Fetch weather data
+const fetchData = async (lat: number, lon: number) => {
+  const [current, hourly] = await Promise.all([
+    getCurrentWeather(lat, lon),
+    getWeatherForecast(lat, lon),
+  ]);
+  
+  if (current) {
+    setWeather(current);
+    const analysis = await getAiWeatherAnalysis(current);
+    setAiAnalysis(analysis);
+  }
+};
+```
+
+## Fetching Weather Data
+
+The weather API client (`src/lib/api/weather.ts`) provides three core functions:
+
+### Get Current Weather by Coordinates
+
+```typescript
+import { getCurrentWeather } from "@/lib/api/weather";
+
+const weather = await getCurrentWeather(40.7128, -74.0060); // NYC coordinates
+
+console.log(weather);
+// {
+//   name: "New York",
+//   main: { temp: 22, humidity: 65, pressure: 1013 },
+//   weather: [{ main: "Clear", description: "cielo claro" }],
+//   wind: { speed: 3.5 },
+//   coord: { lat: 40.7128, lon: -74.0060 }
+// }
+```
+
+### Get Weather by City Name
+
+```typescript
+import { getWeatherByCity } from "@/lib/api/weather";
+
+const weather = await getWeatherByCity("London");
+// Returns same structure as getCurrentWeather
+```
+
+### Get Hourly Forecast
+
+```typescript
+import { getWeatherForecast } from "@/lib/api/weather";
+
+const forecast = await getWeatherForecast(40.7128, -74.0060);
+
+// Returns array of forecast objects (every 3 hours for 5 days)
+forecast.slice(0, 8).forEach(item => {
+  console.log(`${item.dt_txt}: ${item.main.temp}°C`);
+});
+```
+
+<Note>
+All temperature values are in Celsius by default. The API calls include `units=metric` and `lang=es` parameters.
+</Note>
+
+## Displaying Weather with Components
+
+Use pre-built components to display weather data:
+
+### Main Weather Card
+
+```typescript
+import MainWeatherCard from "@/components/ui/MainWeatherCard";
+
+<MainWeatherCard
+  weather={weatherData}
+  localTime={localTime}
+  loadingAi={false}
+  aiAnalysis="Día perfecto para salir. Lleva gafas de sol ☀️"
+  getTempColor={(temp) => temp > 28 ? "text-orange-500" : "text-white"}
+/>
+```
+
+This displays:
+- City name and country
+- Local time
+- Large temperature display with weather icon
+- AI-generated analysis box
+- Dynamic styling based on weather conditions
+
+### Forecast Card
+
+```typescript
+import ForecastCard from "@/components/ui/ForecastCard";
+
+<ForecastCard forecast={forecastArray.slice(0, 8)} />
+```
+
+Shows hourly forecast with temperature trends and weather icons.
+
+### Weather Stats
+
+```typescript
+import WeatherStats from "@/components/ui/WeatherStats";
+
+<WeatherStats weather={weatherData} variant="horizontal" />
+```
+
+Displays detailed metrics:
+- Humidity percentage
+- Wind speed
+- Atmospheric pressure
+- Feels-like temperature
+
+## Adding AI Analysis
+
+The AI analysis feature uses Groq's Llama 3.1 model to generate weather insights:
+
+```typescript src/lib/api/mistral.ts
+import { getAiWeatherAnalysis } from "@/lib/api/mistral";
+
+const analysis = await getAiWeatherAnalysis(weatherData);
+// Returns: "Día fresco y ventoso. Lleva una chaqueta ligera 🧥"
+```
+
+The AI receives:
+- City name
+- Temperature and humidity
+- Wind speed
+- Weather description
+
+And returns a concise recommendation (max 20 words) with an emoji.
+
+<Accordion title="View the AI prompt configuration">
+```typescript
+{
+  role: "system",
+  content: "Eres una API de clima práctica. Tu objetivo es dar un consejo de vestimenta o actividad basado en los datos. Máximo 20 palabras y un emoji. Sé directo, breve y no uses comillas ni introducciones."
+},
+{
+  role: "user",
+  content: `Ciudad: ${weatherData.name}, Temp: ${Math.round(weatherData.main.temp)}°C, Humedad: ${weatherData.main.humidity}%, Viento: ${weatherData.wind.speed}km/h, Estado: ${weatherData.weather[0].description}.`
+}
+```
+</Accordion>
+
+## Testing Location Detection
+
+The `useLocation` hook handles geolocation:
+
+```typescript src/hooks/useLocation.ts
+import { useLocation } from "@/hooks/useLocation";
+
+function WeatherApp() {
+  const { coords, loading, error, refresh } = useLocation();
+  
+  if (loading) return <div>Detecting location...</div>;
+  if (error) return <div>Error: {error}</div>;
+  
+  return <div>Lat: {coords.lat}, Lon: {coords.lon}</div>;
+}
+```
+
+Key features:
+- Automatic location request on mount
+- 15-second timeout for GPS acquisition
+- Manual refresh function for retry
+- Detailed error messages for permission issues
+
+## Common Quickstart Issues
+
+<AccordionGroup>
+
+<Accordion title="Location permission denied">
+If the browser denies location access:
+
+1. Click the lock icon in the browser address bar
+2. Set location permission to "Allow"
+3. Refresh the page or click "Mi Ubicación" button
+4. Alternatively, use the search bar to manually enter a city
+</Accordion>
+
+<Accordion title="API key errors">
+If you see "Falta la API Key" or fetch errors:
+
+1. Verify `.env.local` file exists in root directory
+2. Check variable names match exactly (case-sensitive)
+3. Restart the dev server after adding environment variables
+4. Ensure OpenWeatherMap key is activated (can take 10 minutes)
+</Accordion>
+
+<Accordion title="Map not loading">
+The WeatherMap component uses dynamic import to prevent SSR issues:
+
+```typescript
+const WeatherMap = dynamic(() => import("@/components/ui/WeatherMap"), {
+  ssr: false,
+  loading: () => <div className="animate-pulse" />
+});
+```
+
+If the map doesn't load, check browser console for Leaflet errors.
+</Accordion>
+
+</AccordionGroup>
+
+## Next Steps
+
+Now that you have SkyCast IA running:
+
+1. **Explore Components**: Check `src/components/ui/` for all available components
+2. **Customize Themes**: Modify weather-based color schemes in `src/app/page.tsx`
+3. **Add Features**: Integrate the AI chat component for conversational weather queries
+4. **Deploy**: See the [Installation](/installation) guide for production deployment
+
+<Note>
+The app includes a beautiful animated footer with mountains, trees, and flying birds. Explore `page.tsx` to see the SVG implementation.
 </Note>

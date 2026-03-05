@@ -1,0 +1,337 @@
+---
+title: "Location Services"
+description: "Automatic geolocation with manual city search fallback"
+---
+
+## Overview
+
+SkyCast IA provides seamless location detection using the browser's Geolocation API, with a robust city search fallback for users who prefer manual selection or have location services disabled.
+
+## useLocation Hook
+
+The `useLocation` hook manages geolocation state and handles permission requests:
+
+```typescript
+import { useLocation } from '@/hooks/useLocation';
+
+const { coords, error, loading, refresh } = useLocation();
+```
+
+### Return Values
+
+<ParamField path="coords" type="{ lat: number, lon: number } | null">
+  Current user coordinates or `null` if not available
+</ParamField>
+
+<ParamField path="error" type="string | null">
+  Error message if geolocation failed, or `null` on success
+</ParamField>
+
+<ParamField path="loading" type="boolean">
+  `true` while requesting location, `false` when complete
+</ParamField>
+
+<ParamField path="refresh" type="() => void">
+  Function to manually re-request user location
+</ParamField>
+
+## Geolocation Configuration
+
+The hook uses optimized settings for accuracy and performance:
+
+```typescript
+const options: PositionOptions = {
+  enableHighAccuracy: true,  // Use GPS/WiFi for precise location
+  timeout: 15000,            // 15 second timeout for mobile devices
+  maximumAge: 0              // Always fetch fresh location, no cache
+};
+
+navigator.geolocation.getCurrentPosition(
+  onSuccess,
+  onError,
+  options
+);
+```
+
+### Configuration Details
+
+<Accordion title="enableHighAccuracy: true">
+  - Uses GPS on mobile devices for pinpoint accuracy
+  - Falls back to WiFi triangulation on desktops
+  - May consume more battery on mobile
+  - Provides accuracy within 10-50 meters
+</Accordion>
+
+<Accordion title="timeout: 15000ms">
+  - Gives mobile devices enough time to acquire GPS signal
+  - Prevents indefinite hanging on slow connections
+  - Triggers error callback if exceeded
+  - Desktop typically responds in 2-5 seconds
+</Accordion>
+
+<Accordion title="maximumAge: 0">
+  - Forces fresh location request every time
+  - Prevents stale cached coordinates
+  - Ensures accuracy for weather data
+  - No performance impact on modern browsers
+</Accordion>
+
+## Error Handling
+
+The hook provides user-friendly error messages in Spanish:
+
+```typescript
+switch (err.code) {
+  case 1: // PERMISSION_DENIED
+    msg = "Permiso denegado. Activa la ubicación en los ajustes.";
+    break;
+  case 2: // POSITION_UNAVAILABLE
+    msg = "Ubicación no disponible. Revisa tu señal o GPS.";
+    break;
+  case 3: // TIMEOUT
+    msg = "Tiempo de espera agotado. Reintenta.";
+    break;
+}
+```
+
+### Error States
+
+| Error Code | Message | Common Causes |
+|------------|---------|---------------|
+| 1 | Permission denied | User blocked location access |
+| 2 | Position unavailable | No GPS/WiFi signal, airplane mode |
+| 3 | Timeout | Slow GPS acquisition, weak signal |
+
+<Tip>
+  On PERMISSION_DENIED, show users how to enable location in browser settings with clear instructions
+</Tip>
+
+## SearchCity Component
+
+The `SearchCity` component provides autocomplete city search with history:
+
+```typescript
+import SearchCity from '@/components/ui/SearchCity';
+
+<SearchCity
+  onSearch={(city) => handleCityChange(city)}
+  onGPS={() => refresh()}
+  isSearchingGPS={loading}
+  isSnow={false}
+/>
+```
+
+### Features
+
+<CardGroup cols={2}>
+  <Card title="Autocomplete" icon="magnifying-glass">
+    Real-time city suggestions as you type
+  </Card>
+  <Card title="Search History" icon="clock-rotate-left">
+    Stores last 5 searches in localStorage
+  </Card>
+  <Card title="Mobile Optimized" icon="mobile">
+    Bottom sheet modal on mobile devices
+  </Card>
+  <Card title="Keyboard Navigation" icon="keyboard">
+    Arrow keys to navigate, Enter to select
+  </Card>
+</CardGroup>
+
+## City Search Implementation
+
+SkyCast uses OpenWeather's Geocoding API for city search:
+
+### API Integration
+
+```typescript
+const searchCities = async (query: string) => {
+  const response = await fetch(
+    `http://api.openweathermap.org/geo/1.0/direct?q=${query}&limit=5&appid=${API_KEY}`
+  );
+  
+  const data = await response.json();
+  
+  return data.map((city: any) => ({
+    name: city.name,
+    country: city.country,
+    state: city.state,
+    lat: city.lat,
+    lon: city.lon
+  }));
+};
+```
+
+### Debouncing
+
+Search requests are debounced to reduce API calls:
+
+```typescript
+const [debouncedQuery] = useDebounce(searchQuery, 400);
+
+useEffect(() => {
+  if (debouncedQuery.length >= 2) {
+    searchCities(debouncedQuery);
+  }
+}, [debouncedQuery]);
+```
+
+<Note>
+  The 400ms debounce delay provides a good balance between responsiveness and API efficiency
+</Note>
+
+## Search History
+
+Recent searches are stored in browser localStorage:
+
+```typescript
+// Save search to history
+const saveToHistory = (city: string) => {
+  const history = JSON.parse(
+    localStorage.getItem('skycast_search_history') || '[]'
+  );
+  
+  const updated = [
+    city,
+    ...history.filter((c: string) => c !== city)
+  ].slice(0, 5);
+  
+  localStorage.setItem(
+    'skycast_search_history',
+    JSON.stringify(updated)
+  );
+};
+
+// Load search history
+const loadHistory = () => {
+  return JSON.parse(
+    localStorage.getItem('skycast_search_history') || '[]'
+  );
+};
+```
+
+### History Features
+
+- Stores up to **5 recent searches**
+- Automatically deduplicates entries
+- Moves recently selected cities to top
+- Persists across browser sessions
+- Clears on logout (if auth implemented)
+
+## Permission Handling
+
+For users who denied location access, show clear instructions:
+
+<Steps>
+  <Step title="Detect Permission State">
+    Check if location permission was denied:
+    
+    ```typescript
+    if (error?.includes("Permiso denegado")) {
+      // Show permission instructions
+    }
+    ```
+  </Step>
+  
+  <Step title="Show Browser-Specific Instructions">
+    Display instructions based on user agent:
+    - **Chrome**: Click lock icon → Site settings → Location → Allow
+    - **Firefox**: Click shield icon → Permissions → Location → Allow
+    - **Safari**: Preferences → Websites → Location → Allow
+  </Step>
+  
+  <Step title="Offer Manual Search Alternative">
+    Prominently display the SearchCity component:
+    
+    ```typescript
+    <SearchCity
+      onSearch={handleCityChange}
+      placeholder="Buscar ciudad manualmente..."
+    />
+    ```
+  </Step>
+</Steps>
+
+## Mobile Considerations
+
+### iOS Safari
+
+- Requires HTTPS for geolocation
+- May ask for permission twice (Safari + System)
+- GPS takes 5-10 seconds to acquire
+- Location works in standalone mode (PWA)
+
+### Android Chrome
+
+- Faster GPS acquisition (2-5 seconds)
+- Single permission prompt
+- Works on HTTP for localhost only
+- Background location requires additional permission
+
+<Warning>
+  Always serve SkyCast IA over HTTPS in production. iOS Safari will block geolocation on HTTP.
+</Warning>
+
+## Usage Example
+
+Complete location flow with error handling:
+
+```typescript
+import { useLocation } from '@/hooks/useLocation';
+import SearchCity from '@/components/ui/SearchCity';
+import { getWeatherByCity, getCurrentWeather } from '@/lib/api/weather';
+
+function WeatherApp() {
+  const { coords, error, loading, refresh } = useLocation();
+  const [weather, setWeather] = useState(null);
+  
+  // Auto-fetch weather when coords available
+  useEffect(() => {
+    if (coords) {
+      getCurrentWeather(coords.lat, coords.lon)
+        .then(setWeather);
+    }
+  }, [coords]);
+  
+  // Handle manual city search
+  const handleSearch = async (city: string) => {
+    const data = await getWeatherByCity(city);
+    if (data?.coord) {
+      await getCurrentWeather(data.coord.lat, data.coord.lon)
+        .then(setWeather);
+    }
+  };
+  
+  if (error) {
+    return (
+      <div>
+        <p>{error}</p>
+        <SearchCity onSearch={handleSearch} />
+      </div>
+    );
+  }
+  
+  if (loading) {
+    return <Loader text="Obteniendo ubicación..." />;
+  }
+  
+  return <WeatherDisplay weather={weather} />;
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Request Permission Early" icon="hand-pointer">
+    Ask for location on app load, not after user interaction
+  </Card>
+  <Card title="Explain Why" icon="message">
+    Tell users why location access improves their experience
+  </Card>
+  <Card title="Provide Fallback" icon="magnifying-glass">
+    Always offer manual city search as alternative
+  </Card>
+  <Card title="Cache Results" icon="database">
+    Store last known location to reduce API calls
+  </Card>
+</CardGroup>

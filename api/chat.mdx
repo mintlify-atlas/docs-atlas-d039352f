@@ -1,0 +1,298 @@
+---
+title: 'Chat API'
+description: 'AI-powered weather chat endpoint with reCAPTCHA verification and context-aware responses'
+---
+
+## Overview
+
+The Chat API powers the interactive weather assistant feature in SkyCast IA. It uses Groq's LLaMA 3.1 model to provide weather-related advice with a direct, honest, and slightly sarcastic tone.
+
+## POST /api/chat
+
+Sends a chat message and receives an AI-generated response based on current weather context.
+
+### Endpoint
+
+```
+POST /api/chat
+```
+
+### Request Body
+
+<ParamField path="messages" type="array" required>
+  Array of message objects following the OpenAI chat format
+  <Expandable title="Message Structure">
+    <ParamField path="role" type="string" required>
+      Message role: `"user"` or `"assistant"`
+    </ParamField>
+    <ParamField path="content" type="string" required>
+      Message text content
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="context" type="object" required>
+  Current weather context data
+  <Expandable title="Context Properties">
+    <ParamField path="city" type="string" required>
+      Current city name
+    </ParamField>
+    <ParamField path="temp" type="number" required>
+      Current temperature in Celsius
+    </ParamField>
+    <ParamField path="feels_like" type="number" required>
+      Perceived temperature in Celsius
+    </ParamField>
+    <ParamField path="humidity" type="number" required>
+      Humidity percentage
+    </ParamField>
+    <ParamField path="wind_speed" type="number" required>
+      Wind speed in km/h
+    </ParamField>
+    <ParamField path="pressure" type="number" required>
+      Atmospheric pressure in hPa
+    </ParamField>
+    <ParamField path="pop" type="string" required>
+      Probability of precipitation (formatted string)
+    </ParamField>
+    <ParamField path="description" type="string" required>
+      Weather description in Spanish
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="captchaToken" type="string">
+  Google reCAPTCHA v3 token (required for first message only)
+</ParamField>
+
+### Response
+
+<ResponseField name="answer" type="string">
+  AI-generated response text (max 25 words, 2 emojis max)
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```typescript Request
+const response = await fetch('/api/chat', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    messages: [
+      {
+        role: 'user',
+        content: '¿Qué ropa me recomiendas hoy?'
+      }
+    ],
+    context: {
+      city: 'Buenos Aires',
+      temp: 28,
+      feels_like: 32,
+      humidity: 75,
+      wind_speed: 12,
+      pressure: 1010,
+      pop: '40%',
+      description: 'parcialmente nublado'
+    },
+    captchaToken: 'YOUR_RECAPTCHA_TOKEN'
+  })
+});
+
+const data = await response.json();
+console.log(data.answer);
+```
+
+```json Success Response (200)
+{
+  "answer": "Con 32°C de sensación, ropa ligera y protector solar. Llevá paraguas por las dudas. ☀️☂️"
+}
+```
+
+```json Error Response (403)
+{
+  "answer": "Error de seguridad. Reintenta."
+}
+```
+
+```json Error Response (500)
+{
+  "answer": "Faltan llaves de API. ⚙️"
+}
+```
+
+```json Service Unavailable (503)
+{
+  "answer": "La IA se tomó un café. Reintenta pronto."
+}
+```
+</CodeGroup>
+
+### reCAPTCHA Verification
+
+The endpoint implements Google reCAPTCHA v3 verification for security:
+
+1. **When to send**: Include `captchaToken` only for the first message in a conversation
+2. **Validation**: Token is verified against Google's API using `RECAPTCHA_SECRET_KEY`
+3. **Failure handling**: Returns 403 status with error message if verification fails
+4. **Subsequent messages**: No token required after first successful verification
+
+<CodeGroup>
+```typescript Client-Side Token Generation
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3';
+
+const { executeRecaptcha } = useGoogleReCaptcha();
+
+const sendMessage = async () => {
+  const token = await executeRecaptcha('chat_submit');
+  
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: userInput }],
+      context: weatherContext,
+      captchaToken: token
+    })
+  });
+};
+```
+</CodeGroup>
+
+### AI Personality & Behavior
+
+The chat endpoint configures the AI with specific guidelines:
+
+**Tone**: Direct, honest, and slightly sarcastic  
+**Response Length**: Maximum 25 words  
+**Emoji Limit**: Maximum 2 per response  
+**Temperature**: 0.7 (balanced creativity and consistency)  
+**Max Tokens**: 150
+
+**Key Rules**:
+- Uses technical data (pressure, probability of precipitation) for real advice
+- Doesn't sugarcoat bad weather conditions
+- Uses `feels_like` temperature for clothing recommendations
+- Provides practical, actionable suggestions
+
+### Status Codes
+
+| Code | Meaning |
+|------|----------|
+| 200  | Success - AI response generated |
+| 403  | Forbidden - reCAPTCHA verification failed |
+| 500  | Server Error - Missing API keys or connection error |
+| 503  | Service Unavailable - Groq API unavailable |
+
+---
+
+## getAiWeatherAnalysis
+
+Server action that generates automatic weather analysis for the main weather card.
+
+```typescript
+export async function getAiWeatherAnalysis(weatherData: any)
+```
+
+### Parameters
+
+<ParamField path="weatherData" type="object" required>
+  OpenWeatherMap API response object
+  <Expandable title="Required Properties">
+    <ParamField path="name" type="string">City name</ParamField>
+    <ParamField path="main.temp" type="number">Temperature</ParamField>
+    <ParamField path="main.humidity" type="number">Humidity</ParamField>
+    <ParamField path="wind.speed" type="number">Wind speed</ParamField>
+    <ParamField path="weather[0].description" type="string">Weather description</ParamField>
+  </Expandable>
+</ParamField>
+
+### Returns
+
+<ResponseField name="string" type="string">
+  Brief AI-generated analysis (max 20 words, 1 emoji)
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```typescript Usage
+"use server";
+import { getAiWeatherAnalysis } from '@/lib/api/mistral';
+import { getCurrentWeather } from '@/lib/api/weather';
+
+const weatherData = await getCurrentWeather(lat, lon);
+const analysis = await getAiWeatherAnalysis(weatherData);
+
+console.log(analysis);
+// Output: "Día perfecto para caminar. Llevá agua. ☀️"
+```
+
+```typescript Input Data
+const weatherData = {
+  name: 'Madrid',
+  main: {
+    temp: 25,
+    humidity: 45
+  },
+  wind: {
+    speed: 8
+  },
+  weather: [
+    {
+      description: 'cielo claro'
+    }
+  ]
+};
+```
+</CodeGroup>
+
+### Configuration
+
+**Model**: `llama-3.1-8b-instant` (Groq)  
+**Temperature**: 0.3 (low for consistency)  
+**Max Response**: 20 words  
+**Endpoint**: `https://api.groq.com/openai/v1/chat/completions`
+
+### System Prompt
+
+```
+Eres una API de clima práctica. Tu objetivo es dar un consejo de 
+vestimenta o actividad basado en los datos. Máximo 20 palabras y un 
+emoji. Sé directo, breve y no uses comillas ni introducciones.
+```
+
+### Error Handling
+
+Returns fallback messages instead of throwing errors:
+
+| Scenario | Return Value |
+|----------|-------------|
+| Missing API key | `"Falta la API Key. 🔑"` |
+| API error | `"Análisis no disponible. ☁️"` |
+| Network error | `"Análisis no disponible. ☁️"` |
+| Empty response | `"¡Disfrutá el día! ☀️"` |
+
+---
+
+## Environment Variables
+
+Required environment variables:
+
+```env
+GROQ_API_KEY=your_groq_api_key
+RECAPTCHA_SECRET_KEY=your_recaptcha_secret
+```
+
+### API Keys
+
+- **GROQ_API_KEY**: Get from [console.groq.com](https://console.groq.com)
+- **RECAPTCHA_SECRET_KEY**: Get from [Google reCAPTCHA Admin](https://www.google.com/recaptcha/admin)
+
+### Security Notes
+
+- Never expose `RECAPTCHA_SECRET_KEY` to the client
+- Use `NEXT_PUBLIC_` prefix only for reCAPTCHA site key
+- Groq API key must remain server-side only

@@ -1,0 +1,208 @@
+---
+title: "Weather Display"
+description: "Dynamic weather cards with real-time data and adaptive UI themes"
+---
+
+## Overview
+
+SkyCast IA features a powerful weather display system that adapts its UI based on current weather conditions. The main weather card shows live temperature, atmospheric data, and AI-powered recommendations.
+
+## Main Weather Card
+
+The `MainWeatherCard` component is the centerpiece of the weather display, showing current conditions with dynamic theming.
+
+### Key Features
+
+<CardGroup cols={2}>
+  <Card title="Dynamic Icons" icon="sun">
+    Weather-specific icons that animate based on conditions (sun, moon, rain, snow, thunder)
+  </Card>
+  <Card title="Adaptive Theming" icon="palette">
+    UI colors change based on temperature and weather type
+  </Card>
+  <Card title="AI Analysis" icon="robot">
+    Real-time weather recommendations powered by Groq/Llama
+  </Card>
+  <Card title="Local Time" icon="clock">
+    Displays accurate local time for the selected city
+  </Card>
+</CardGroup>
+
+### Weather Icon Logic
+
+The component automatically selects appropriate icons:
+
+```typescript
+// Snow conditions (temp ≤ 0°C or snow weather)
+if (isSnow) {
+  return <Snowflake size={100} className="animate-bounce-slow text-blue-400" />;
+}
+
+// Thunder
+if (mainWeather.includes("thunder")) {
+  return <CloudLightning size={100} className="animate-pulse text-purple-400" />;
+}
+
+// Rain
+if (mainWeather.includes("rain")) {
+  return <CloudRain size={100} className="animate-bounce-slow text-blue-300" />;
+}
+
+// Sun or Moon based on time of day
+return isDay ? (
+  <Sun size={120} className="animate-spin-slow text-yellow-300" />
+) : (
+  <Moon size={100} className="animate-float text-blue-100" />
+);
+```
+
+### Theme Variants
+
+The UI adapts to weather conditions:
+
+<Accordion title="Snow Theme (temp ≤ 0°C)">
+  - Light gray background with subtle transparency
+  - Dark text for high contrast on light surfaces
+  - Blue accent colors for ice/snow effects
+  - Snowflake animations across the page
+</Accordion>
+
+<Accordion title="Hot Theme (temp > 28°C)">
+  - Warm gradient backgrounds (orange to red)
+  - Orange glow effects around weather icons
+  - Yellow/gold accent colors
+  - Heat wave visual effects
+</Accordion>
+
+<Accordion title="Rain Theme">
+  - Dark blue/slate backgrounds
+  - Animated rain pattern overlay
+  - Blue tints on all UI elements
+  - Cloud and rain drop icons
+</Accordion>
+
+<Accordion title="Clear/Default Theme">
+  - Vibrant blue gradients
+  - White text on dark backgrounds
+  - Sun icons with rotation animations
+  - Clean, minimal design
+</Accordion>
+
+## Weather Stats Component
+
+The `WeatherStats` component displays key atmospheric data in a responsive grid:
+
+```typescript
+import { WeatherStats } from '@/components/ui/WeatherStats';
+
+<WeatherStats weather={weatherData} variant="horizontal" />
+```
+
+### Displayed Metrics
+
+<ParamField path="feels_like" type="number">
+  **Thermal Sensation** - Perceived temperature accounting for humidity and wind
+</ParamField>
+
+<ParamField path="humidity" type="number">
+  **Humidity** - Relative humidity percentage (0-100%)
+</ParamField>
+
+<ParamField path="wind.speed" type="number">
+  **Wind Speed** - Wind velocity in km/h with direction indicator
+</ParamField>
+
+<ParamField path="main.pressure" type="number">
+  **Atmospheric Pressure** - Barometric pressure in hPa (hectopascals)
+</ParamField>
+
+## Custom Animations
+
+SkyCast IA includes three custom CSS animations for weather icons:
+
+### Spin Slow Animation
+
+Used for sun icons to simulate rotation:
+
+```css
+.animate-spin-slow {
+  animation: spinSlow 12s linear infinite;
+}
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+```
+
+### Float Animation
+
+Used for clouds and moon to create gentle movement:
+
+```css
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+```
+
+### Bounce Slow Animation
+
+Used for rain and snow to simulate falling motion:
+
+```css
+.animate-bounce-slow {
+  animation: bounceSlow 3s ease-in-out infinite;
+}
+
+@keyframes bounceSlow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+```
+
+## Usage Example
+
+```typescript
+import MainWeatherCard from '@/components/ui/MainWeatherCard';
+import WeatherStats from '@/components/ui/WeatherStats';
+import { getCurrentWeather } from '@/lib/api/weather';
+
+const weather = await getCurrentWeather(40.7128, -74.0060);
+
+<>
+  <MainWeatherCard
+    weather={weather}
+    localTime="14:30:25"
+    loadingAi={false}
+    aiAnalysis="Perfect day for outdoor activities! ☀️"
+    getTempColor={(temp) => temp > 28 ? 'text-orange-400' : 'text-white'}
+  />
+  
+  <WeatherStats weather={weather} variant="horizontal" />
+</>
+```
+
+## Responsive Design
+
+All weather display components are fully responsive:
+
+- **Mobile**: Vertical stacking, single-column layouts
+- **Tablet**: Two-column grids, optimized spacing
+- **Desktop**: Multi-column layouts with sidebar statistics
+
+<Note>
+  The weather display automatically adjusts to screen size using Tailwind's responsive utilities (`sm:`, `md:`, `lg:`, `xl:`)
+</Note>
+
+## Accessibility
+
+- High contrast text ratios in all themes
+- Semantic HTML structure
+- ARIA labels on interactive elements
+- Keyboard navigation support
+- Screen reader friendly

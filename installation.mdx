@@ -1,0 +1,609 @@
+---
+title: Installation
+description: Complete installation guide for SkyCast IA with detailed setup instructions, dependencies, and troubleshooting
+---
+
+# Installation Guide
+
+This comprehensive guide covers everything you need to install, configure, and deploy SkyCast IA in both development and production environments.
+
+## System Requirements
+
+<Note>
+Ensure your development environment meets these minimum requirements before proceeding.
+</Note>
+
+- **Node.js**: Version 20 or higher
+- **npm**: Version 10+ (comes with Node.js)
+- **Operating System**: macOS, Windows, or Linux
+- **Browser**: Modern browser with geolocation support (Chrome, Firefox, Safari, Edge)
+
+### Verify Installation
+
+```bash
+node --version  # Should output v20.x.x or higher
+npm --version   # Should output 10.x.x or higher
+```
+
+## Getting API Keys
+
+SkyCast IA requires three API services. Follow these steps to obtain your keys:
+
+<Steps>
+
+### OpenWeatherMap API Key
+
+1. Visit [OpenWeatherMap Sign Up](https://home.openweathermap.org/users/sign_up)
+2. Create a free account
+3. Navigate to [API Keys](https://home.openweathermap.org/api_keys)
+4. Copy your default API key or generate a new one
+5. **Important**: New keys can take up to 10 minutes to activate
+
+<Warning>
+The free tier includes 1,000 API calls per day. SkyCast IA makes approximately 3-4 calls per location search.
+</Warning>
+
+### Groq API Key
+
+1. Go to [Groq Console](https://console.groq.com)
+2. Sign up or log in with your account
+3. Navigate to API Keys section
+4. Create a new API key
+5. Copy and save it securely (it won't be shown again)
+
+Groq provides free access to Llama 3.1-8b-instant model with generous rate limits.
+
+### Google reCAPTCHA Keys (Optional)
+
+Required for AI chat feature to prevent abuse:
+
+1. Visit [Google reCAPTCHA Admin](https://www.google.com/recaptcha/admin/create)
+2. Register a new site:
+   - **Label**: SkyCast IA
+   - **reCAPTCHA type**: v3
+   - **Domains**: Add `localhost` for development and your production domain
+3. Submit and copy both:
+   - **Site Key** (public, used in frontend)
+   - **Secret Key** (private, used in backend)
+
+</Steps>
+
+## Project Installation
+
+### Step 1: Clone Repository
+
+```bash
+git clone <repository-url> skycast-ia
+cd skycast-ia
+```
+
+If starting from scratch without a repository:
+
+```bash
+mkdir skycast-ia
+cd skycast-ia
+# Copy source files into this directory
+```
+
+### Step 2: Install Dependencies
+
+Install all required packages from `package.json`:
+
+```bash
+npm install
+```
+
+This installs:
+
+**Core Framework**
+- `next@16.1.6` - React framework
+- `react@19.2.3` - UI library
+- `react-dom@19.2.3` - React DOM renderer
+- `typescript@^5` - Type safety
+
+**AI & API Integration**
+- `@google/generative-ai@^0.24.1` - Google AI SDK (Gemini support)
+
+**UI Components & Styling**
+- `tailwindcss@^4` - Utility-first CSS
+- `lucide-react@^0.576.0` - Icon library
+- `recharts@^3.7.0` - Chart components
+
+**Maps & Geolocation**
+- `leaflet@^1.9.4` - Interactive maps
+- `react-leaflet@^5.0.0` - React wrapper for Leaflet
+- `country-state-city@^3.2.1` - Location data
+
+**Security**
+- `react-google-recaptcha@^3.1.0` - reCAPTCHA integration
+
+**Development Tools**
+- `@types/node`, `@types/react`, `@types/react-dom` - TypeScript definitions
+- `@types/leaflet`, `@types/react-google-recaptcha` - Additional type definitions
+- `eslint@^9` - Code linting
+- `eslint-config-next@16.1.6` - Next.js ESLint config
+
+<Accordion title="View complete package.json">
+```json package.json
+{
+  "name": "skycast-ia",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "country-state-city": "^3.2.1",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.576.0",
+    "next": "16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-google-recaptcha": "^3.1.0",
+    "react-leaflet": "^5.0.0",
+    "recharts": "^3.7.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.1",
+    "@types/leaflet": "^1.9.21",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/react-google-recaptcha": "^2.1.9",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
+```
+</Accordion>
+
+### Step 3: Environment Configuration
+
+Create a `.env.local` file in the root directory:
+
+```bash
+touch .env.local
+```
+
+Add your API keys:
+
+```bash .env.local
+# OpenWeatherMap API (Required)
+NEXT_PUBLIC_OPENWEATHER_API_KEY=your_openweather_api_key_here
+
+# Groq AI API (Required for AI features)
+GROQ_API_KEY=your_groq_api_key_here
+
+# Google reCAPTCHA (Optional - for chat security)
+RECAPTCHA_SECRET_KEY=your_recaptcha_secret_key_here
+NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your_recaptcha_site_key_here
+```
+
+<Warning>
+**Security Best Practices:**
+- Never commit `.env.local` to version control
+- Add `.env.local` to your `.gitignore` file
+- Use different API keys for development and production
+- Rotate keys if accidentally exposed
+</Warning>
+
+#### Environment Variable Reference
+
+| Variable | Type | Required | Description |
+|----------|------|----------|-------------|
+| `NEXT_PUBLIC_OPENWEATHER_API_KEY` | Public | Yes | OpenWeatherMap API key for weather data |
+| `GROQ_API_KEY` | Private | Yes | Groq AI key for weather analysis (server-side) |
+| `RECAPTCHA_SECRET_KEY` | Private | No | reCAPTCHA secret for chat validation |
+| `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` | Public | No | reCAPTCHA site key for frontend |
+
+<Note>
+Variables prefixed with `NEXT_PUBLIC_` are exposed to the browser. Private variables are only accessible in API routes and server components.
+</Note>
+
+### Step 4: Start Development Server
+
+```bash
+npm run dev
+```
+
+The application will start on [http://localhost:3000](http://localhost:3000).
+
+You should see:
+```
+▲ Next.js 16.1.6
+- Local:        http://localhost:3000
+- Ready in 2.5s
+```
+
+## Project Structure Explained
+
+```
+skycast-ia/
+├── src/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── chat/
+│   │   │   │   └── route.ts          # POST /api/chat - AI chat endpoint
+│   │   │   └── news/
+│   │   │       └── route.ts          # GET /api/news - News aggregation
+│   │   ├── layout.tsx                # Root layout with metadata
+│   │   ├── page.tsx                  # Main weather dashboard
+│   │   └── globals.css               # Global styles + Tailwind directives
+│   ├── components/
+│   │   └── ui/
+│   │       ├── MainWeatherCard.tsx   # Primary weather display
+│   │       ├── ForecastCard.tsx      # Hourly forecast chart
+│   │       ├── WeatherStats.tsx      # Humidity, wind, pressure stats
+│   │       ├── WeatherMap.tsx        # Leaflet interactive map
+│   │       ├── WeatherChat.tsx       # AI chat interface
+│   │       ├── WeatherNews.tsx       # News feed component
+│   │       ├── WeatherAlerts.tsx     # Weather alerts display
+│   │       └── SearchCity.tsx        # City search with autocomplete
+│   ├── hooks/
+│   │   └── useLocation.ts            # Geolocation hook
+│   └── lib/
+│       └── api/
+│           ├── weather.ts            # OpenWeatherMap API client
+│           ├── mistral.ts            # Groq AI client
+│           └── news.ts               # News API client
+├── public/                            # Static assets
+├── .env.local                         # Environment variables (not in git)
+├── next.config.ts                     # Next.js configuration
+├── tailwind.config.ts                 # Tailwind CSS configuration
+├── tsconfig.json                      # TypeScript configuration
+└── package.json                       # Dependencies and scripts
+```
+
+## Configuration Files
+
+### Next.js Configuration
+
+The `next.config.ts` file contains framework settings:
+
+```typescript next.config.ts
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  // Configuration options go here
+};
+
+export default nextConfig;
+```
+
+### Tailwind Configuration
+
+Tailwind CSS 4 is configured in `tailwind.config.ts`:
+
+```typescript tailwind.config.ts
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      // Custom theme extensions
+    },
+  },
+  plugins: [],
+};
+
+export default config;
+```
+
+## Building for Production
+
+### Step 1: Create Production Build
+
+```bash
+npm run build
+```
+
+This command:
+1. Type-checks all TypeScript files
+2. Lints code with ESLint
+3. Optimizes and bundles for production
+4. Generates static pages where possible
+
+Expected output:
+```
+✓ Compiled successfully
+✓ Collecting page data
+✓ Generating static pages (5/5)
+✓ Finalizing page optimization
+
+Route (app)                Size     First Load JS
+┌ ○ /                     10.2 kB         95.3 kB
+├ ○ /api/chat            0 B              0 B
+└ ○ /api/news            0 B              0 B
+```
+
+### Step 2: Test Production Build Locally
+
+```bash
+npm run start
+```
+
+This starts the production server on port 3000. Test thoroughly before deploying.
+
+### Step 3: Deploy
+
+SkyCast IA can be deployed to various platforms:
+
+<Accordion title="Deploy to Vercel (Recommended)">
+**Vercel** (creators of Next.js) offers the best integration:
+
+1. Push code to GitHub/GitLab/Bitbucket
+2. Import project at [vercel.com/new](https://vercel.com/new)
+3. Add environment variables in project settings
+4. Deploy
+
+Vercel automatically:
+- Runs builds on every push
+- Configures edge functions for API routes
+- Provides free SSL certificates
+- Offers global CDN distribution
+</Accordion>
+
+<Accordion title="Deploy to Netlify">
+1. Install Netlify CLI: `npm install -g netlify-cli`
+2. Build project: `npm run build`
+3. Deploy: `netlify deploy --prod`
+4. Configure environment variables in Netlify dashboard
+
+Update `next.config.ts` for static export if needed:
+```typescript
+const nextConfig = {
+  output: 'export',
+};
+```
+</Accordion>
+
+<Accordion title="Self-Hosted Deployment">
+For VPS or dedicated servers:
+
+1. Build the application: `npm run build`
+2. Start with PM2 for process management:
+```bash
+npm install -g pm2
+pm2 start npm --name "skycast-ia" -- start
+pm2 save
+pm2 startup
+```
+3. Configure Nginx as reverse proxy:
+```nginx
+server {
+  listen 80;
+  server_name yourdomain.com;
+
+  location / {
+    proxy_pass http://localhost:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_cache_bypass $http_upgrade;
+  }
+}
+```
+</Accordion>
+
+## Troubleshooting Common Issues
+
+<AccordionGroup>
+
+<Accordion title="Module not found errors">
+**Problem**: `Module not found: Can't resolve 'leaflet'`
+
+**Solution**:
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
+
+Ensure `leaflet` and `react-leaflet` versions match:
+```json
+"leaflet": "^1.9.4",
+"react-leaflet": "^5.0.0"
+```
+</Accordion>
+
+<Accordion title="Window is not defined (Leaflet)">
+**Problem**: Server-side rendering error with Leaflet
+
+**Solution**: The WeatherMap component already uses dynamic import with `ssr: false`:
+
+```typescript src/app/page.tsx
+const WeatherMap = dynamic(() => import("@/components/ui/WeatherMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[550px] bg-black/10 animate-pulse rounded-[3rem]" />
+  ),
+});
+```
+
+If you create new map components, always use this pattern.
+</Accordion>
+
+<Accordion title="API key not working">
+**Problem**: `401 Unauthorized` from OpenWeatherMap
+
+**Solutions**:
+1. **Activation delay**: Wait 10-15 minutes after generating new key
+2. **Wrong variable name**: Must be `NEXT_PUBLIC_OPENWEATHER_API_KEY`
+3. **Server restart**: Restart dev server after adding environment variables
+4. **Verify in code**: Check console logs in browser DevTools Network tab
+
+Test your API key directly:
+```bash
+curl "https://api.openweathermap.org/data/2.5/weather?q=London&appid=YOUR_KEY"
+```
+</Accordion>
+
+<Accordion title="Geolocation not working">
+**Problem**: Location permission denied or timeout
+
+**Solutions**:
+1. **Browser permissions**: Click lock icon → Location → Allow
+2. **HTTPS required**: Geolocation only works on HTTPS (or localhost)
+3. **Timeout increase**: Already set to 15 seconds in `useLocation.ts:21`
+4. **Fallback to search**: Use city search if GPS unavailable
+
+The app handles errors gracefully:
+```typescript src/hooks/useLocation.ts
+switch (err.code) {
+  case 1: msg = "Permiso denegado. Activa la ubicación en los ajustes.";
+  case 2: msg = "Ubicación no disponible. Revisa tu señal o GPS.";
+  case 3: msg = "Tiempo de espera agotado. Reintenta.";
+}
+```
+</Accordion>
+
+<Accordion title="TypeScript errors">
+**Problem**: Type errors in components or API calls
+
+**Solution**: Install missing type definitions:
+```bash
+npm install --save-dev @types/leaflet @types/react-google-recaptcha
+```
+
+For any `any` types, define proper interfaces:
+```typescript
+interface WeatherData {
+  name: string;
+  main: {
+    temp: number;
+    humidity: number;
+    pressure: number;
+    feels_like: number;
+  };
+  weather: Array<{
+    main: string;
+    description: string;
+    icon: string;
+  }>;
+  wind: { speed: number };
+  coord: { lat: number; lon: number };
+  timezone: number;
+  sys: { country: string };
+}
+```
+</Accordion>
+
+<Accordion title="AI chat not responding">
+**Problem**: Chat returns errors or empty responses
+
+**Checks**:
+1. **Groq API key**: Verify `GROQ_API_KEY` in `.env.local`
+2. **reCAPTCHA**: If using chat, ensure both reCAPTCHA keys are set
+3. **Rate limits**: Check Groq console for quota limits
+4. **Network tab**: Inspect `/api/chat` request in browser DevTools
+
+The API route at `src/app/api/chat/route.ts` includes detailed error handling:
+```typescript
+if (!groqKey || !recaptchaSecret) {
+  return NextResponse.json(
+    { answer: "Faltan llaves de API. ⚙️" },
+    { status: 500 }
+  );
+}
+```
+</Accordion>
+
+<Accordion title="Build fails with CSS errors">
+**Problem**: Tailwind CSS or PostCSS errors during build
+
+**Solution**: Ensure Tailwind 4 is properly configured:
+
+1. Check `globals.css` has directives:
+```css src/app/globals.css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+```
+
+2. Verify `tailwind.config.ts` content paths are correct
+3. Clear Next.js cache:
+```bash
+rm -rf .next
+npm run build
+```
+</Accordion>
+
+</AccordionGroup>
+
+## Development Tips
+
+<Note>
+These tips will help you develop more efficiently with SkyCast IA.
+</Note>
+
+### Hot Reload Issues
+
+If changes aren't reflecting:
+```bash
+# Clear Next.js cache
+rm -rf .next
+
+# Restart dev server
+npm run dev
+```
+
+### Testing Different Weather Conditions
+
+Search for cities with different climates:
+- **Hot**: Dubai, UAE (28°C+)
+- **Cold/Snow**: Reykjavik, Iceland (0°C or below)
+- **Rainy**: London, UK
+- **Clear**: Los Angeles, USA
+
+The UI theme changes based on weather type in `src/app/page.tsx:420-430`.
+
+### Debugging API Calls
+
+Add console logs to API clients:
+
+```typescript src/lib/api/weather.ts
+export const getCurrentWeather = async (lat: number, lon: number) => {
+  const url = `${BASE_URL}/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=es`;
+  console.log('Fetching weather:', url);
+  
+  const response = await fetch(url);
+  console.log('Response status:', response.status);
+  
+  const data = await response.json();
+  console.log('Weather data:', data);
+  
+  return data;
+};
+```
+
+### Performance Optimization
+
+The app is already optimized with:
+- Dynamic imports for heavy components (Leaflet)
+- Parallel API calls with `Promise.all`
+- Memoized callbacks with `useCallback`
+- Debounced search (400ms in SearchCity)
+
+## Next Steps
+
+Now that SkyCast IA is installed:
+
+1. **Customize**: Modify components in `src/components/ui/`
+2. **Extend**: Add new weather data sources or AI features
+3. **Deploy**: Push to production with Vercel or your preferred platform
+4. **Monitor**: Set up error tracking with Sentry or similar tools
+
+<Warning>
+Remember to monitor your API usage to avoid exceeding free tier limits on OpenWeatherMap and Groq.
+</Warning>

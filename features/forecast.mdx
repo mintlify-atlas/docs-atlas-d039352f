@@ -1,0 +1,384 @@
+---
+title: "Weather Forecast"
+description: "Hourly predictions with charts and precipitation intelligence"
+---
+
+## Overview
+
+SkyCast IA provides detailed hourly forecasts for the next 24 hours, including temperature trends, precipitation probability, and intelligent rain/snow alerts.
+
+## ForecastCard Component
+
+The `ForecastCard` displays an 8-hour forecast with visual temperature charts:
+
+```typescript
+import ForecastCard from '@/components/ui/ForecastCard';
+
+<ForecastCard forecast={forecastData} />
+```
+
+### Data Structure
+
+Forecast data comes from OpenWeatherMap's 5-day/3-hour forecast API:
+
+```typescript
+interface ForecastItem {
+  dt: number;                    // Unix timestamp
+  main: {
+    temp: number;                // Temperature in Celsius
+    feels_like: number;          // Thermal sensation
+    temp_min: number;
+    temp_max: number;
+    pressure: number;
+    humidity: number;
+  };
+  weather: [
+    {
+      id: number;
+      main: string;              // "Rain", "Snow", "Clear", etc.
+      description: string;
+      icon: string;              // Icon code (e.g., "01d")
+    }
+  ];
+  pop: number;                   // Probability of precipitation (0-1)
+  wind: {
+    speed: number;
+    deg: number;
+  };
+}
+```
+
+## Precipitation Intelligence
+
+The forecast card includes smart precipitation analysis:
+
+### Rain Detection Logic
+
+```typescript
+const currentStatus = forecast[0];
+
+// Check if it's raining now
+const isRainingNow = 
+  currentStatus.weather[0].main.toLowerCase().includes("rain") ||
+  currentStatus.pop > 0.4;  // >40% probability
+
+// Find next rain if not raining
+const nextRain = forecast.find((item, i) => 
+  i > 0 && item.pop > 0.3
+);
+
+// Find when rain stops if raining
+const rainEnds = forecast.find((item, i) => 
+  i > 0 && item.pop < 0.2
+);
+```
+
+### Display Examples
+
+<Tabs>
+  <Tab title="Currently Raining">
+    **Status**: Lloviendo ahora. Cesa a las 16:00
+    
+    - Shows rain cloud icon with pulse animation
+    - Displays time when rain stops
+    - Highlights affected hours in forecast
+  </Tab>
+  
+  <Tab title="Rain Expected">
+    **Status**: Sin lluvias. Llega a las 14:00 (65%)
+    
+    - Shows clear icon
+    - Predicts when rain will start
+    - Displays precipitation probability
+  </Tab>
+  
+  <Tab title="No Rain">
+    **Status**: Sin lluvias. Cielo despejado hoy
+    
+    - Shows clear/cloud icon
+    - Confirms no precipitation expected
+    - Encourages outdoor activities
+  </Tab>
+</Tabs>
+
+## Temperature Chart
+
+SkyCast uses Recharts to visualize temperature trends:
+
+```typescript
+import { AreaChart, Area, ResponsiveContainer } from 'recharts';
+
+const chartData = forecast.map((item) => ({
+  temp: Math.round(item.main.temp)
+}));
+
+<ResponsiveContainer width="100%" height="100%">
+  <AreaChart data={chartData} margin={{ left: 45, right: 45 }}>
+    <defs>
+      <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#ffffff" stopOpacity={0.6} />
+        <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
+      </linearGradient>
+    </defs>
+    
+    <Area
+      type="natural"
+      dataKey="temp"
+      stroke="#ffffff"
+      strokeWidth={2.5}
+      fill="url(#chartGrad)"
+      animationDuration={1200}
+    />
+  </AreaChart>
+</ResponsiveContainer>
+```
+
+### Chart Features
+
+<CardGroup cols={2}>
+  <Card title="Smooth Curves" icon="chart-line">
+    Natural cubic spline interpolation for smooth temperature transitions
+  </Card>
+  <Card title="Gradient Fill" icon="droplet">
+    Subtle gradient from solid to transparent
+  </Card>
+  <Card title="Glow Effect" icon="sun">
+    SVG filter adds soft glow to line
+  </Card>
+  <Card title="Animated" icon="play">
+    1.2 second entrance animation
+  </Card>
+</CardGroup>
+
+## Hourly Forecast Items
+
+Each hour displays:
+
+### Time Display
+
+```typescript
+const hour = new Date(item.dt * 1000).getHours();
+
+<span className="text-xs font-black">
+  {hour}:00
+</span>
+```
+
+### Weather Icon
+
+```typescript
+<img
+  src={`https://openweathermap.org/img/wn/${item.weather[0].icon}@2x.png`}
+  alt={item.weather[0].description}
+  className="w-12 h-12"
+/>
+```
+
+<Note>
+  OpenWeatherMap provides day/night variants automatically (icon codes ending in 'd' or 'n')
+</Note>
+
+### Temperature
+
+```typescript
+<span className="text-2xl font-black tracking-tighter">
+  {Math.round(item.main.temp)}°
+</span>
+```
+
+### Precipitation Probability
+
+```typescript
+<div className="flex items-center gap-1">
+  <Droplets size={15} fill="currentColor" />
+  <span className="text-xs">
+    {Math.round(item.pop * 100)}%
+  </span>
+</div>
+```
+
+## Fetching Forecast Data
+
+Use the weather API to get forecast data:
+
+```typescript
+import { getWeatherForecast } from '@/lib/api/weather';
+
+// Fetch 5-day forecast
+const forecastList = await getWeatherForecast(lat, lon);
+
+// Take first 8 items (24 hours)
+const hourlyForecast = forecastList.slice(0, 8);
+
+<ForecastCard forecast={hourlyForecast} />
+```
+
+### API Response
+
+OpenWeather returns forecasts in 3-hour intervals:
+
+```json
+{
+  "list": [
+    {
+      "dt": 1678291200,
+      "main": {
+        "temp": 18.5,
+        "feels_like": 17.8,
+        "pressure": 1013,
+        "humidity": 65
+      },
+      "weather": [
+        {
+          "id": 800,
+          "main": "Clear",
+          "description": "clear sky",
+          "icon": "01d"
+        }
+      ],
+      "pop": 0.1,
+      "wind": {
+        "speed": 4.5,
+        "deg": 180
+      }
+    }
+  ]
+}
+```
+
+## Responsive Design
+
+The forecast card adapts to screen sizes:
+
+### Desktop
+
+- Horizontal scrolling for 8+ hours
+- All items visible without scrolling
+- Chart spans full width
+
+### Mobile
+
+- Touch-friendly swipe scrolling
+- Larger touch targets (48x48px minimum)
+- Stacked layout for better readability
+
+```typescript
+<div className="overflow-x-auto no-scrollbar">
+  <div className="min-w-[850px]">
+    {/* Forecast items */}
+  </div>
+</div>
+```
+
+<Tip>
+  The `no-scrollbar` class hides scrollbars while keeping scroll functionality
+</Tip>
+
+## Adaptive Theming
+
+Forecast styling changes based on weather:
+
+```typescript
+const isSnow = forecast[0]?.weather[0]?.main?.toLowerCase() === "snow";
+
+const bgClass = isSnow 
+  ? "bg-black/5 border-black/10" 
+  : "bg-white/10 border-white/10";
+
+const textClass = isSnow 
+  ? "text-slate-900" 
+  : "text-white";
+```
+
+### Theme Variants
+
+| Weather | Background | Text | Chart |
+|---------|------------|------|-------|
+| Snow | Light gray | Dark | Black line |
+| Default | Dark translucent | White | White line |
+| Rain | Blue tint | White | Blue line |
+
+## Usage Example
+
+Complete forecast integration:
+
+```typescript
+import { useState, useEffect } from 'react';
+import ForecastCard from '@/components/ui/ForecastCard';
+import { getWeatherForecast } from '@/lib/api/weather';
+
+function WeatherForecast({ lat, lon }: { lat: number, lon: number }) {
+  const [forecast, setForecast] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    getWeatherForecast(lat, lon)
+      .then(data => {
+        setForecast(data.slice(0, 8));  // Next 24 hours
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error('Forecast error:', error);
+        setLoading(false);
+      });
+  }, [lat, lon]);
+  
+  if (loading) return <Skeleton />;
+  
+  return <ForecastCard forecast={forecast} />;
+}
+```
+
+## Performance Optimization
+
+<Accordion title="Debounced API Calls">
+  Forecast fetches are debounced when coordinates change rapidly:
+  
+  ```typescript
+  const [debouncedCoords] = useDebounce(coords, 1000);
+  
+  useEffect(() => {
+    if (debouncedCoords) {
+      fetchForecast(debouncedCoords.lat, debouncedCoords.lon);
+    }
+  }, [debouncedCoords]);
+  ```
+</Accordion>
+
+<Accordion title="Chart Memoization">
+  Chart data is memoized to prevent unnecessary recalculations:
+  
+  ```typescript
+  const chartData = useMemo(
+    () => forecast.map(item => ({ temp: Math.round(item.main.temp) })),
+    [forecast]
+  );
+  ```
+</Accordion>
+
+<Accordion title="Lazy Loading">
+  Charts load only when visible using Intersection Observer:
+  
+  ```typescript
+  const [isVisible, setIsVisible] = useState(false);
+  const chartRef = useRef(null);
+  
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsVisible(entry.isIntersecting)
+    );
+    
+    if (chartRef.current) observer.observe(chartRef.current);
+    
+    return () => observer.disconnect();
+  }, []);
+  ```
+</Accordion>
+
+## Accessibility
+
+- Semantic HTML structure
+- ARIA labels on interactive elements
+- Keyboard navigation support
+- High contrast text
+- Screen reader announcements for precipitation changes

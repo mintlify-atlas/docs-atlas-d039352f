@@ -1,0 +1,290 @@
+---
+title: 'Weather API'
+description: 'Functions for fetching current weather and forecast data from OpenWeatherMap'
+---
+
+## Overview
+
+The Weather API provides functions to retrieve current weather conditions and forecasts using the OpenWeatherMap API. All functions return data in metric units with Spanish language support.
+
+## getCurrentWeather
+
+Retrieves current weather data by geographic coordinates (latitude/longitude). Ideal for automatic GPS-based location detection.
+
+```typescript
+export const getCurrentWeather = async (lat: number, lon: number)
+```
+
+### Parameters
+
+<ParamField path="lat" type="number" required>
+  Latitude coordinate (-90 to 90)
+</ParamField>
+
+<ParamField path="lon" type="number" required>
+  Longitude coordinate (-180 to 180)
+</ParamField>
+
+### Returns
+
+Returns a promise that resolves to a weather object or `null` if the request fails.
+
+<ResponseField name="coord" type="object">
+  Geographic coordinates
+  <Expandable title="properties">
+    <ResponseField name="lat" type="number">Latitude</ResponseField>
+    <ResponseField name="lon" type="number">Longitude</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="weather" type="array">
+  Weather condition information
+  <Expandable title="properties">
+    <ResponseField name="id" type="number">Weather condition ID</ResponseField>
+    <ResponseField name="main" type="string">Weather group (Rain, Snow, Clear, etc.)</ResponseField>
+    <ResponseField name="description" type="string">Weather description in Spanish</ResponseField>
+    <ResponseField name="icon" type="string">Weather icon ID</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="main" type="object">
+  Main weather metrics
+  <Expandable title="properties">
+    <ResponseField name="temp" type="number">Temperature in Celsius</ResponseField>
+    <ResponseField name="feels_like" type="number">Perceived temperature in Celsius</ResponseField>
+    <ResponseField name="temp_min" type="number">Minimum temperature</ResponseField>
+    <ResponseField name="temp_max" type="number">Maximum temperature</ResponseField>
+    <ResponseField name="pressure" type="number">Atmospheric pressure in hPa</ResponseField>
+    <ResponseField name="humidity" type="number">Humidity percentage</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="wind" type="object">
+  Wind information
+  <Expandable title="properties">
+    <ResponseField name="speed" type="number">Wind speed in km/h</ResponseField>
+    <ResponseField name="deg" type="number">Wind direction in degrees</ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  City name
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```typescript Usage
+import { getCurrentWeather } from '@/lib/api/weather';
+
+const weatherData = await getCurrentWeather(40.7128, -74.0060);
+
+if (weatherData) {
+  console.log(`Temperature in ${weatherData.name}: ${weatherData.main.temp}°C`);
+  console.log(`Conditions: ${weatherData.weather[0].description}`);
+}
+```
+
+```json Response
+{
+  "coord": { "lat": 40.7128, "lon": -74.006 },
+  "weather": [
+    {
+      "id": 800,
+      "main": "Clear",
+      "description": "cielo claro",
+      "icon": "01d"
+    }
+  ],
+  "main": {
+    "temp": 22.5,
+    "feels_like": 21.8,
+    "temp_min": 20.0,
+    "temp_max": 24.0,
+    "pressure": 1013,
+    "humidity": 65
+  },
+  "wind": {
+    "speed": 3.6,
+    "deg": 180
+  },
+  "name": "New York"
+}
+```
+</CodeGroup>
+
+### Error Handling
+
+The function catches all errors and returns `null` instead of throwing. Errors are logged to the console with the prefix "Error en getCurrentWeather:".
+
+---
+
+## getWeatherByCity
+
+Searches for current weather data by city name. Perfect for manual city search functionality.
+
+```typescript
+export const getWeatherByCity = async (city: string)
+```
+
+### Parameters
+
+<ParamField path="city" type="string" required>
+  City name (can include country code, e.g., "London,UK")
+</ParamField>
+
+### Returns
+
+Returns the same weather object structure as `getCurrentWeather`, or `null` if the city is not found.
+
+### Example
+
+<CodeGroup>
+```typescript Usage
+import { getWeatherByCity } from '@/lib/api/weather';
+
+const weatherData = await getWeatherByCity('Buenos Aires');
+
+if (weatherData) {
+  console.log(`Current weather in ${weatherData.name}:`);
+  console.log(`${weatherData.main.temp}°C - ${weatherData.weather[0].description}`);
+} else {
+  console.log('City not found');
+}
+```
+
+```typescript With Country Code
+const weatherData = await getWeatherByCity('Paris,FR');
+```
+</CodeGroup>
+
+### Error Handling
+
+Returns `null` if:
+- The city name is invalid or not found
+- The API request fails
+- Network connectivity issues occur
+
+Errors are logged with "Error en getWeatherByCity:" prefix.
+
+---
+
+## getWeatherForecast
+
+Retrieves extended weather forecast (5 days, 3-hour intervals). Returns up to 40 forecast data points.
+
+```typescript
+export const getWeatherForecast = async (lat: number, lon: number)
+```
+
+### Parameters
+
+<ParamField path="lat" type="number" required>
+  Latitude coordinate (-90 to 90)
+</ParamField>
+
+<ParamField path="lon" type="number" required>
+  Longitude coordinate (-180 to 180)
+</ParamField>
+
+### Returns
+
+Returns an array of forecast objects, or `null` if the request fails. Each forecast object contains weather data for a 3-hour interval.
+
+<ResponseField name="dt" type="number">
+  Unix timestamp of the forecast time
+</ResponseField>
+
+<ResponseField name="main" type="object">
+  Temperature and atmospheric data (same structure as current weather)
+</ResponseField>
+
+<ResponseField name="weather" type="array">
+  Weather conditions (same structure as current weather)
+</ResponseField>
+
+<ResponseField name="wind" type="object">
+  Wind information
+</ResponseField>
+
+<ResponseField name="pop" type="number">
+  Probability of precipitation (0 to 1)
+</ResponseField>
+
+<ResponseField name="dt_txt" type="string">
+  Forecast time in text format (YYYY-MM-DD HH:MM:SS)
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```typescript Usage
+import { getWeatherForecast } from '@/lib/api/weather';
+
+const forecast = await getWeatherForecast(40.7128, -74.0060);
+
+if (forecast) {
+  // Get first 8 entries for 24-hour forecast
+  const next24Hours = forecast.slice(0, 8);
+  
+  next24Hours.forEach(entry => {
+    console.log(`${entry.dt_txt}: ${entry.main.temp}°C`);
+    console.log(`Rain probability: ${(entry.pop * 100).toFixed(0)}%`);
+  });
+}
+```
+
+```json Response
+[
+  {
+    "dt": 1678348800,
+    "main": {
+      "temp": 18.5,
+      "feels_like": 17.8,
+      "pressure": 1015,
+      "humidity": 72
+    },
+    "weather": [
+      {
+        "main": "Clouds",
+        "description": "nubes dispersas",
+        "icon": "03d"
+      }
+    ],
+    "wind": {
+      "speed": 4.2,
+      "deg": 220
+    },
+    "pop": 0.15,
+    "dt_txt": "2026-03-05 12:00:00"
+  }
+]
+```
+</CodeGroup>
+
+### Usage Notes
+
+- The full response contains up to 40 forecast entries (5 days × 8 per day)
+- Components typically use `.slice(0, 8)` to display the next 24 hours
+- All temperatures are in Celsius (metric units)
+- Language is set to Spanish ("lang=es")
+
+---
+
+## Configuration
+
+All weather functions require the `NEXT_PUBLIC_OPENWEATHER_API_KEY` environment variable:
+
+```env
+NEXT_PUBLIC_OPENWEATHER_API_KEY=your_api_key_here
+```
+
+### API Endpoint
+
+Base URL: `https://api.openweathermap.org/data/2.5`
+
+### Default Settings
+
+- **Units**: Metric (Celsius, km/h)
+- **Language**: Spanish ("es")
+- **Timeout**: No explicit timeout set (browser default)

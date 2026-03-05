@@ -1,97 +1,177 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "SkyCast IA Documentation"
+description: "AI-powered weather intelligence with real-time forecasts and personalized recommendations"
+mode: "custom"
 ---
 
-## Setting up
+<div className="relative overflow-hidden dark:bg-[#1A5EFF] bg-[#1A5EFF] py-20 px-4 sm:px-6 lg:px-8">
+  <div className="absolute inset-0 bg-gradient-to-br from-[#1A5EFF] via-[#1e8cec] to-[#2563eb] opacity-90"></div>
+  
+  <div className="relative max-w-6xl mx-auto">
+    <div className="text-center space-y-8">
+      <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white tracking-tight">
+        Welcome to SkyCast IA Documentation
+      </h1>
+      
+      <p className="text-base sm:text-lg lg:text-xl text-white/90 max-w-3xl mx-auto">
+        Build intelligent weather applications with AI-powered forecasts, real-time data, and personalized climate recommendations
+      </p>
+      
+      <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+        <a
+          href="/quickstart"
+          className="inline-flex items-center justify-center px-8 py-3 text-base font-bold text-white dark:text-white bg-[#ffd600] hover:bg-[#FFD700] rounded-full transition-all active:scale-95 shadow-lg"
+        >
+          Get Started
+        </a>
+        <a
+          href="/api/weather"
+          className="inline-flex items-center justify-center px-8 py-3 text-base font-bold text-white border-2 border-white/30 bg-white/10 hover:bg-white/20 rounded-full transition-all active:scale-95"
+        >
+          Explore API Reference
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-3">
+      Get Started in Minutes
+    </h2>
+    <p className="text-base dark:text-gray-400 text-gray-600">
+      Follow these steps to integrate SkyCast IA into your application
+    </p>
+  </div>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+  <Steps>
+    <Step title="Install Dependencies">
+      Install the required packages for your Next.js application:
+      
+      ```bash npm
+      npm install next react react-dom leaflet react-leaflet recharts
+      ```
+      
+      ```bash yarn
+      yarn add next react react-dom leaflet react-leaflet recharts
+      ```
+    </Step>
+    
+    <Step title="Configure API Keys">
+      Create a `.env.local` file in your project root and add your API credentials:
+      
+      ```bash
+      NEXT_PUBLIC_OPENWEATHER_API_KEY=your_openweather_key
+      GROQ_API_KEY=your_groq_key
+      NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your_recaptcha_site_key
+      RECAPTCHA_SECRET_KEY=your_recaptcha_secret
+      ```
+      
+      <Note>
+        Get your OpenWeatherMap API key from [openweathermap.org/api](https://openweathermap.org/api) and Groq API key from [console.groq.com](https://console.groq.com)
+      </Note>
+    </Step>
+    
+    <Step title="Fetch Weather Data">
+      Use the weather API functions to get real-time data:
+      
+      ```typescript
+      import { getCurrentWeather, getWeatherForecast } from '@/lib/api/weather';
+      
+      // Get current weather by coordinates
+      const weather = await getCurrentWeather(40.7128, -74.0060);
+      
+      // Get hourly forecast
+      const forecast = await getWeatherForecast(40.7128, -74.0060);
+      ```
+    </Step>
+    
+    <Step title="Add AI-Powered Analysis">
+      Integrate intelligent weather recommendations:
+      
+      ```typescript
+      import { getAiWeatherAnalysis } from '@/lib/api/mistral';
+      
+      // Get AI analysis based on weather data
+      const analysis = await getAiWeatherAnalysis(weather);
+      // Returns: "Perfect day for outdoor activities! 🌞"
+      ```
+    </Step>
+  </Steps>
+</div>
 
-## Make it yours
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-3">
+      Explore Core Features
+    </h2>
+    <p className="text-base dark:text-gray-400 text-gray-600">
+      Discover what makes SkyCast IA powerful
+    </p>
+  </div>
 
-Design a docs site that looks great and empowers your users.
+  <CardGroup cols={2}>
+    <Card title="Real-Time Weather Display" icon="cloud-sun" href="/features/weather-display">
+      Dynamic weather cards with live temperature, humidity, wind speed, and atmospheric pressure
+    </Card>
+    <Card title="AI Chat Assistant" icon="robot" href="/features/ai-chat">
+      Intelligent chat interface powered by Groq/Llama for personalized weather advice
+    </Card>
+    <Card title="Smart Geolocation" icon="location-dot" href="/features/location-services">
+      Automatic location detection with fallback to manual city search
+    </Card>
+    <Card title="Interactive Weather Map" icon="map" href="/features/weather-map">
+      Leaflet-powered maps with real-time weather overlays and city markers
+    </Card>
+    <Card title="Hourly Forecasts" icon="chart-line" href="/features/forecast">
+      Visual forecast charts with 8-hour predictions and precipitation probability
+    </Card>
+    <Card title="Dynamic Themes" icon="palette" href="/features/weather-display">
+      UI themes that adapt based on weather conditions (snow, rain, clear, hot)
+    </Card>
+  </CardGroup>
+</div>
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-3">
+      API Reference
+    </h2>
+    <p className="text-base dark:text-gray-400 text-gray-600">
+      Complete documentation for all APIs and hooks
+    </p>
+  </div>
 
-## Create beautiful pages
+  <CardGroup cols={3}>
+    <Card title="Weather API" icon="cloud" href="/api/weather">
+      Functions for fetching current weather and forecasts
+    </Card>
+    <Card title="Chat API" icon="messages" href="/api/chat">
+      AI-powered chat endpoint for weather conversations
+    </Card>
+    <Card title="News API" icon="newspaper" href="/api/news">
+      Fetch weather-related news by location
+    </Card>
+    <Card title="useLocation Hook" icon="compass" href="/api/hooks/use-location">
+      React hook for geolocation management
+    </Card>
+  </CardGroup>
+</div>
 
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="dark:bg-[#1a1d27] bg-gray-50 dark:border-[#27272a] border-gray-200 border rounded-2xl p-8 sm:p-12 text-center">
+    <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-4">
+      Ready to Build?
+    </h2>
+    <p className="text-base dark:text-gray-400 text-gray-600 mb-6 max-w-2xl mx-auto">
+      Start building intelligent weather applications with SkyCast IA's powerful APIs and AI capabilities
+    </p>
+    <a
+      href="/quickstart"
+      className="inline-flex items-center justify-center px-8 py-3 text-base font-bold text-white dark:text-white bg-[#1e8cec] hover:bg-[#1e8cec]/90 rounded-lg transition-all active:scale-95"
+    >
+      View Quickstart Guide
+    </a>
+  </div>
+</div>

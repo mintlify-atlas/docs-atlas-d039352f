@@ -1,0 +1,413 @@
+---
+title: Search Component
+description: Comprehensive documentation for the SearchCity autocomplete component
+---
+
+# SearchCity Component
+
+An advanced city search component with real-time autocomplete, search history, and mobile-optimized modal interface.
+
+## Overview
+
+SearchCity provides a dual-interface search experience:
+- **Desktop:** Dropdown autocomplete with hover states
+- **Mobile:** Full-screen bottom sheet modal with optimized touch interactions
+
+## Props
+
+<ParamField path="onSearch" type="function" required>
+  Callback invoked when a city is selected.
+  
+  **Signature:** `(city: string) => void`
+  
+  **Parameters:**
+  - `city` - Full city name in format "CityName, CountryCode" (e.g., "Paris, FR")
+</ParamField>
+
+<ParamField path="onGPS" type="function" required>
+  Callback to trigger GPS location refresh.
+  
+  **Signature:** `() => void`
+  
+  Used for "Mi Ubicación" button functionality.
+</ParamField>
+
+<ParamField path="isSearchingGPS" type="boolean" default="false">
+  Loading state for GPS location request. Shows spinner when `true`.
+</ParamField>
+
+<ParamField path="isSnow" type="boolean" default="false">
+  Enables snow theme styling with inverted colors.
+</ParamField>
+
+## Basic Usage
+
+<CodeGroup>
+```tsx Simple Implementation
+import SearchCity from '@/components/ui/SearchCity';
+import { getWeatherByCity } from '@/lib/api/weather';
+
+function WeatherApp() {
+  const [loading, setLoading] = useState(false);
+
+  const handleSearch = async (city: string) => {
+    const data = await getWeatherByCity(city);
+    // Update weather state
+  };
+
+  const handleGPS = () => {
+    // Request geolocation
+    navigator.geolocation.getCurrentPosition(...);
+  };
+
+  return (
+    <SearchCity
+      onSearch={handleSearch}
+      onGPS={handleGPS}
+      isSearchingGPS={loading}
+      isSnow={false}
+    />
+  );
+}
+```
+
+```tsx With Weather Context
+import { useWeather } from '@/context/WeatherContext';
+
+function Header() {
+  const { setCity, refreshLocation, isLoading, weatherType } = useWeather();
+
+  return (
+    <SearchCity
+      onSearch={setCity}
+      onGPS={refreshLocation}
+      isSearchingGPS={isLoading}
+      isSnow={weatherType === 'snow'}
+    />
+  );
+}
+```
+</CodeGroup>
+
+## Features
+
+### Real-Time Autocomplete
+
+Searches cities using OpenWeather Geocoding API with debouncing:
+
+```typescript
+useEffect(() => {
+  const fetchSuggestions = async () => {
+    if (query.trim().length < 3) {
+      setSuggestions([]);
+      return;
+    }
+    
+    const API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
+    const res = await fetch(
+      `https://api.openweathermap.org/geo/1.0/direct?q=${query}&limit=5&appid=${API_KEY}`
+    );
+    const data = await res.json();
+    setSuggestions(data);
+  };
+  
+  // 400ms debounce
+  const debounce = setTimeout(fetchSuggestions, 400);
+  return () => clearTimeout(debounce);
+}, [query]);
+```
+
+**API Response Format:**
+
+```json
+[
+  {
+    "name": "Paris",
+    "country": "FR",
+    "state": "Île-de-France",
+    "lat": 48.8566,
+    "lon": 2.3522
+  }
+]
+```
+
+### Search History
+
+Automatically stores last 5 searches in localStorage:
+
+<Accordion title="How History Works">
+  **Storage Key:** `weather-history`
+  
+  **Format:** JSON array of city strings
+  
+  ```typescript
+  const saveToHistory = (cityName: string) => {
+    const newHistory = [
+      cityName,
+      ...history.filter(h => h !== cityName)
+    ].slice(0, 5);
+    
+    setHistory(newHistory);
+    localStorage.setItem('weather-history', JSON.stringify(newHistory));
+  };
+  ```
+  
+  **Initialization:**
+  ```typescript
+  useEffect(() => {
+    const savedHistory = localStorage.getItem('weather-history');
+    if (savedHistory) setHistory(JSON.parse(savedHistory));
+  }, []);
+  ```
+</Accordion>
+
+### Mobile Bottom Sheet
+
+Full-screen modal rendered via React Portal:
+
+```tsx
+const mobileModal = isMobileSearchOpen && mounted
+  ? createPortal(
+      <div className="fixed inset-0 z-[9999]">
+        {/* Backdrop */}
+        <div 
+          className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+          onClick={closeMobile}
+        />
+        
+        {/* Bottom Sheet */}
+        <div className="relative w-full rounded-t-[2rem]">
+          {/* Content */}
+        </div>
+      </div>,
+      document.body
+    )
+  : null;
+```
+
+**Animation:**
+```css
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+```
+
+### Desktop Dropdown
+
+Inline dropdown with click-outside detection:
+
+```typescript
+useEffect(() => {
+  const handleClickOutside = (e: MouseEvent) => {
+    if (desktopRef.current && !desktopRef.current.contains(e.target as Node)) {
+      setShowDropdown(false);
+    }
+  };
+  
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => document.removeEventListener('mousedown', handleClickOutside);
+}, []);
+```
+
+## Customization
+
+### Theme Variants
+
+<CodeGroup>
+```tsx Snow Theme
+const containerStyles = isSnow
+  ? "bg-slate-100 border-slate-200 text-slate-900"
+  : "bg-white/5 border-white/10 text-white";
+
+const modalBg = isSnow
+  ? "bg-white/98 border-slate-200"
+  : "bg-[#0F0F0F]/98 border-white/10";
+```
+
+```tsx Focus States
+<div className="focus-within:ring-2 ring-[#2ECC71]/30">
+  <input />
+</div>
+```
+</CodeGroup>
+
+### Suggestion Rendering
+
+Custom suggestion list component:
+
+```tsx
+function SuggestionsList({ suggestions, handleSelect, isSnow }) {
+  const hoverBg = isSnow ? "hover:bg-slate-100" : "hover:bg-white/6";
+  
+  return (
+    <div>
+      {suggestions.map((s, i) => (
+        <button
+          key={i}
+          onClick={() => handleSelect(s)}
+          className={`flex items-center gap-4 ${hoverBg}`}
+        >
+          <MapPin size={17} className="text-[#2ECC71]" />
+          <div>
+            <p className="font-bold">{s.name}</p>
+            <p className="text-xs uppercase">
+              {s.state ? `${s.state}, ` : ""}{s.country}
+            </p>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+### Loading States
+
+<Accordion title="Search Loading">
+  Shows animated spinner while fetching suggestions:
+  
+  ```tsx
+  {isSearching && (
+    <Loader2 size={18} className="animate-spin opacity-40" />
+  )}
+  ```
+</Accordion>
+
+<Accordion title="GPS Loading">
+  Updates button text and icon:
+  
+  ```tsx
+  <button disabled={locLoading}>
+    {locLoading ? (
+      <RefreshCw size={16} className="animate-spin" />
+    ) : (
+      <LocateFixed size={17} />
+    )}
+  </button>
+  ```
+</Accordion>
+
+## API Integration
+
+### Environment Variables
+
+Required environment variable:
+
+```bash
+NEXT_PUBLIC_OPENWEATHER_API_KEY=your_api_key_here
+```
+
+### Geocoding API Endpoint
+
+```
+GET https://api.openweathermap.org/geo/1.0/direct
+
+Query Parameters:
+- q: City name to search
+- limit: Maximum results (default: 5)
+- appid: Your API key
+```
+
+### Error Handling
+
+```typescript
+try {
+  const res = await fetch(geocodingUrl);
+  const data = await res.json();
+  setSuggestions(data);
+} catch (err) {
+  console.error('Error buscando sugerencias', err);
+  // Gracefully fail - show empty results
+}
+```
+
+## Accessibility Features
+
+- **Keyboard Navigation:** Full keyboard support for dropdown
+- **ARIA Labels:** `aria-label="Buscar ciudad"` on mobile button
+- **Focus Management:** Auto-focus input when modal opens
+- **Screen Reader:** Semantic HTML structure
+
+```tsx
+useEffect(() => {
+  if (isMobileSearchOpen && inputRef.current) {
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }
+}, [isMobileSearchOpen]);
+```
+
+## Mobile UX Patterns
+
+### Handle Bar
+
+Visual affordance for dismissal:
+
+```tsx
+<div className="flex justify-center pt-3">
+  <div className="w-10 h-1 rounded-full bg-white/20" />
+</div>
+```
+
+### Overscroll Containment
+
+Prevents background scrolling:
+
+```tsx
+<div className="overflow-y-auto overscroll-contain">
+  {/* Results */}
+</div>
+```
+
+### Touch-Optimized Buttons
+
+```tsx
+<button className="active:scale-95 transition-all">
+  {/* Large touch targets (min 44px) */}
+</button>
+```
+
+## Performance Optimizations
+
+1. **Debouncing:** 400ms delay prevents excessive API calls
+2. **Portal Rendering:** Modal only renders when open
+3. **Lazy Suggestions:** Results cleared when query < 3 chars
+4. **Event Cleanup:** All event listeners properly removed
+5. **Refs for DOM Access:** Avoids unnecessary re-renders
+
+## Common Patterns
+
+<CodeGroup>
+```tsx Clear Search
+const clearSearch = () => {
+  setQuery('');
+  setSuggestions([]);
+  setShowDropdown(false);
+};
+```
+
+```tsx Handle History Click
+const handleHistorySelect = (cityName: string) => {
+  onSearch(cityName);
+  closeMobile();
+};
+```
+
+```tsx Minimum Query Length
+if (query.trim().length < 3) {
+  return (
+    <div className="py-14 text-center">
+      <p>Escribe al menos 3 letras</p>
+    </div>
+  );
+}
+```
+</CodeGroup>
+
+## Testing Considerations
+
+- Mock `navigator.geolocation` for GPS functionality
+- Stub `localStorage` for history feature
+- Test debounce timing with fake timers
+- Verify portal rendering in JSDOM
+- Test click-outside detection

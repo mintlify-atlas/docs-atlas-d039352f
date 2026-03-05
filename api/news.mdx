@@ -1,0 +1,297 @@
+---
+title: 'News API'
+description: 'Fetch weather and climate-related news articles for a specific city'
+---
+
+## Overview
+
+The News API retrieves relevant weather and climate news articles using the GNews API. It provides localized news content based on the city's weather context.
+
+## Client Function
+
+### getNews
+
+Client-side function to fetch news articles for a specific city.
+
+```typescript
+export const getNews = async (city: string)
+```
+
+#### Parameters
+
+<ParamField path="city" type="string" required>
+  City name to fetch weather-related news for
+</ParamField>
+
+#### Returns
+
+Returns a promise that resolves to an array of news article objects, or an empty array if the request fails.
+
+#### Example
+
+<CodeGroup>
+```typescript Usage
+import { getNews } from '@/lib/api/news';
+
+const articles = await getNews('Buenos Aires');
+
+articles.forEach(article => {
+  console.log(article.title);
+  console.log(article.url);
+});
+```
+
+```typescript Component Integration
+import { useState, useEffect } from 'react';
+import { getNews } from '@/lib/api/news';
+
+export default function WeatherNews({ city }) {
+  const [articles, setArticles] = useState([]);
+  
+  useEffect(() => {
+    const fetchNews = async () => {
+      const data = await getNews(city);
+      setArticles(data);
+    };
+    
+    fetchNews();
+  }, [city]);
+  
+  return (
+    <div>
+      {articles.map((article, idx) => (
+        <article key={idx}>
+          <h3>{article.title}</h3>
+          <p>{article.description}</p>
+        </article>
+      ))}
+    </div>
+  );
+}
+```
+</CodeGroup>
+
+#### Error Handling
+
+The function catches all errors and returns an empty array instead of throwing. Errors are logged to the console with the prefix "News Fetch Error:".
+
+---
+
+## API Endpoint
+
+### GET /api/news
+
+Server-side endpoint that fetches news from GNews API.
+
+#### Query Parameters
+
+<ParamField path="city" type="string">
+  City name for news search context (optional)
+</ParamField>
+
+#### Response
+
+Returns an array of article objects or an error object.
+
+<ResponseField name="articles" type="array">
+  Array of news article objects (max 6 articles)
+  <Expandable title="Article Properties">
+    <ResponseField name="title" type="string">
+      Article headline
+    </ResponseField>
+    <ResponseField name="description" type="string">
+      Article summary or excerpt
+    </ResponseField>
+    <ResponseField name="content" type="string">
+      Article content preview
+    </ResponseField>
+    <ResponseField name="url" type="string">
+      Full article URL
+    </ResponseField>
+    <ResponseField name="image" type="string">
+      Article thumbnail image URL
+    </ResponseField>
+    <ResponseField name="publishedAt" type="string">
+      Publication date (ISO 8601 format)
+    </ResponseField>
+    <ResponseField name="source" type="object">
+      News source information
+      <Expandable title="Source Properties">
+        <ResponseField name="name" type="string">Publisher name</ResponseField>
+        <ResponseField name="url" type="string">Publisher website</ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example
+
+<CodeGroup>
+```typescript Direct API Call
+const response = await fetch('/api/news?city=Madrid');
+const articles = await response.json();
+
+console.log(articles);
+```
+
+```json Success Response
+[
+  {
+    "title": "Alerta meteorológica: Lluvias intensas en Madrid",
+    "description": "El servicio meteorológico emite advertencia por precipitaciones...",
+    "content": "Las autoridades han emitido una alerta amarilla...",
+    "url": "https://example.com/article",
+    "image": "https://example.com/image.jpg",
+    "publishedAt": "2026-03-05T10:30:00Z",
+    "source": {
+      "name": "El País",
+      "url": "https://elpais.com"
+    }
+  }
+]
+```
+
+```json Error Response (500)
+{
+  "error": "Failed"
+}
+```
+</CodeGroup>
+
+### Search Query Logic
+
+The endpoint uses intelligent query construction:
+
+```typescript
+const query = city ? `${city} clima` : "medio ambiente";
+```
+
+- **With city**: Searches for `"{city} clima"` (e.g., "Madrid clima")
+- **Without city**: Defaults to `"medio ambiente"` (environment news)
+
+This ensures relevant results even when city parameter is missing.
+
+### Request Configuration
+
+**Base URL**: `https://gnews.io/api/v4/search`
+
+**Parameters**:
+- `q`: Search query (city + "clima" or "medio ambiente")
+- `lang`: Language code ("es" for Spanish)
+- `max`: Maximum articles (6)
+- `apikey`: GNews API key from environment variable
+
+### Status Codes
+
+| Code | Meaning |
+|------|----------|
+| 200  | Success - Articles returned |
+| 500  | Server Error - Failed to fetch from GNews |
+
+---
+
+## Environment Variables
+
+Required environment variable:
+
+```env
+NEWS_API_KEY=your_gnews_api_key
+```
+
+### Getting an API Key
+
+1. Visit [gnews.io](https://gnews.io)
+2. Sign up for a free account
+3. Copy your API key from the dashboard
+4. Add it to your `.env.local` file
+
+### Rate Limits
+
+GNews free tier limits:
+- **100 requests/day**
+- **10 requests/minute**
+- **Max 10 articles per request** (we use 6)
+
+---
+
+## Integration Guide
+
+### Basic Implementation
+
+```typescript
+import { getNews } from '@/lib/api/news';
+
+// Fetch news for current city
+const articles = await getNews(currentCity);
+
+if (articles.length > 0) {
+  console.log(`Found ${articles.length} articles`);
+} else {
+  console.log('No news available');
+}
+```
+
+### With Loading States
+
+```typescript
+const [news, setNews] = useState([]);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState(null);
+
+useEffect(() => {
+  const fetchNews = async () => {
+    try {
+      setLoading(true);
+      const articles = await getNews(city);
+      setNews(articles);
+    } catch (err) {
+      setError('Failed to load news');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  fetchNews();
+}, [city]);
+```
+
+### Caching Strategy
+
+To respect API rate limits, consider implementing caching:
+
+```typescript
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+const newsCache = new Map();
+
+export const getNewsWithCache = async (city: string) => {
+  const cacheKey = city.toLowerCase();
+  const cached = newsCache.get(cacheKey);
+  
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
+  
+  const articles = await getNews(city);
+  newsCache.set(cacheKey, {
+    data: articles,
+    timestamp: Date.now()
+  });
+  
+  return articles;
+};
+```
+
+---
+
+## Debugging
+
+The API endpoint logs responses for debugging:
+
+```typescript
+console.log("GNews Response:", data);
+```
+
+Check your development console or server logs to inspect:
+- Full API responses
+- Error messages
+- Article count and quality
